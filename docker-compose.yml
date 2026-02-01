@@ -1,0 +1,24 @@
+services:
+  backend-api:
+    build: ./backend
+    container_name: ai_bio_backend
+    ports:
+      - "3001:5000"
+    env_file:
+      - ./backend/.env
+    networks:
+      - ai-bio-network
+
+  frontend:
+    build: ./frontend
+    container_name: ai_bio_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend-api
+    networks:
+      - ai-bio-network
+
+networks:
+  ai-bio-network:
+    driver: bridge
