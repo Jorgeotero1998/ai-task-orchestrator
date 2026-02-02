@@ -1,7 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, LogOut, Circle, Loader2, ShieldCheck, Zap, History, Rocket, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Sparkles, LogOut, Circle, Loader2, ShieldCheck, Zap, History, Rocket, ChevronRight, CheckCircle2, FileDown } from 'lucide-react';
+import { jsPDF } from "jspdf";
 
 function App() {
     const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -41,6 +42,38 @@ function App() {
         return "Procesando dato...";
     };
 
+    const exportarPDF = () => {
+        const doc = new jsPDF();
+        doc.setFontSize(20);
+        doc.setTextColor(112, 0, 255);
+        doc.text("Plan de Orquestación AI-BIO", 20, 20);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Objetivo: ${task || "Consulta de Historial"}`, 20, 35);
+        doc.text(`Fecha: ${new Date().toLocaleString()}`, 20, 42);
+        
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(0, 242, 255);
+        doc.line(20, 48, 190, 48);
+
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.text("Protocolo Detallado:", 20, 60);
+
+        let yPos = 70;
+        result.forEach((step, index) => {
+            const text = `${index + 1}. ${parseStep(step)}`;
+            const lines = doc.splitTextToSize(text, 170);
+            if (yPos > 270) { doc.addPage(); yPos = 20; }
+            doc.setFontSize(11);
+            doc.text(lines, 20, yPos);
+            yPos += (lines.length * 7);
+        });
+
+        doc.save(`BIO_Protocol_${Date.now()}.pdf`);
+    };
+
     const handleOrchestrate = async () => {
         if (!task) return;
         setLoading(true);
@@ -60,17 +93,12 @@ function App() {
         <div className="app-root">
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap');
-                
                 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
-                
-                /* Barra de desplazamiento Premium */
                 ::-webkit-scrollbar { width: 4px; }
                 ::-webkit-scrollbar-track { background: transparent; }
                 ::-webkit-scrollbar-thumb { background: rgba(0, 242, 255, 0.2); border-radius: 10px; }
                 ::-webkit-scrollbar-thumb:hover { background: #00f2ff; }
-
                 body, html { width: 100%; height: 100%; background: #050505; color: white; overflow: hidden; }
-                
                 .app-root {
                     width: 100vw; height: 100vh; display: flex;
                     background: #050505;
@@ -78,15 +106,12 @@ function App() {
                         radial-gradient(at 0% 0%, rgba(112, 0, 255, 0.15) 0px, transparent 50%),
                         radial-gradient(at 100% 100%, rgba(0, 242, 255, 0.15) 0px, transparent 50%);
                 }
-
                 .sidebar {
                     width: 280px; background: rgba(255,255,255,0.01);
                     backdrop-filter: blur(40px); border-right: 1px solid rgba(255,255,255,0.05);
                     padding: 40px 20px; display: flex; flex-direction: column;
                 }
-
                 .main-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 40px; }
-
                 .glass-card {
                     background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(60px);
                     border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 40px;
@@ -95,33 +120,27 @@ function App() {
                     box-shadow: 0 40px 80px rgba(0,0,0,0.6);
                     transition: all 0.5s ease;
                 }
-
                 .pulse-loading {
                     animation: pulse 2s infinite;
                     border-color: rgba(0, 242, 255, 0.3);
                     box-shadow: 0 0 40px rgba(112, 0, 255, 0.2);
                 }
-
                 @keyframes pulse {
                     0% { transform: scale(1); }
                     50% { transform: scale(1.01); }
                     100% { transform: scale(1); }
                 }
-
                 .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 22px; letter-spacing: 4px; }
                 .neon { color: #00f2ff; text-shadow: 0 0 15px rgba(0, 242, 255, 0.6); }
-
                 .input-container {
                     display: flex; background: rgba(255,255,255,0.04); border-radius: 20px;
                     padding: 8px; border: 1px solid rgba(255,255,255,0.08); margin-top: 30px; 
                     transition: 0.3s;
                 }
                 .input-container:focus-within { border-color: #7000ff; background: rgba(255,255,255,0.07); }
-
                 .input-container input {
                     background: none; border: none; color: white; flex: 1; padding: 15px; outline: none; font-size: 16px;
                 }
-
                 .btn-action {
                     background: linear-gradient(135deg, #7000ff, #00f2ff); color: white;
                     border: none; border-radius: 16px; width: 52px; height: 52px; cursor: pointer;
@@ -129,14 +148,12 @@ function App() {
                     transition: 0.3s;
                 }
                 .btn-action:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(112, 0, 255, 0.4); }
-
                 .history-pill {
                     padding: 12px 16px; border-radius: 14px; background: rgba(255,255,255,0.02);
                     margin-bottom: 8px; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.4);
                     transition: 0.3s; border: 1px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
                 }
                 .history-pill:hover { background: rgba(255,255,255,0.06); color: #00f2ff; padding-left: 20px; }
-
                 .step-card {
                     display: flex; align-items: flex-start; gap: 15px; padding: 18px;
                     background: rgba(255,255,255,0.02); border-radius: 20px;
@@ -146,7 +163,12 @@ function App() {
                 .step-card:hover { background: rgba(255,255,255,0.05); transform: translateX(5px); }
                 .step-card.completed { border-color: #00ff88; opacity: 0.5; }
                 .step-card.completed p { text-decoration: line-through; }
-
+                .btn-pdf {
+                    background: rgba(0, 242, 255, 0.1); color: #00f2ff; border: 1px solid rgba(0, 242, 255, 0.3);
+                    padding: 8px 15px; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: 700;
+                    display: flex; align-items: center; gap: 8px; margin-top: 15px; transition: 0.3s;
+                }
+                .btn-pdf:hover { background: #00f2ff; color: black; }
                 .spin { animation: rotate 1s linear infinite; }
                 @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}</style>
@@ -174,6 +196,7 @@ function App() {
                                         try {
                                             const data = typeof h.subtasks === 'string' ? JSON.parse(h.subtasks) : h.subtasks;
                                             setResult(Array.isArray(data) ? data : [data]);
+                                            setTask(h.title);
                                             setCompletedSteps([]);
                                         } catch(e) { setResult([]); }
                                     }}>
@@ -186,9 +209,16 @@ function App() {
 
                         <main className="main-content">
                             <div className={`glass-card ${loading ? 'pulse-loading' : ''}`}>
-                                <div className="brand">BIO-<span className="neon">ORQUESTADOR</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                    <div className="brand">BIO-<span className="neon">ORQUESTADOR</span></div>
+                                    {result.length > 0 && (
+                                        <button className="btn-pdf" onClick={exportarPDF}>
+                                            <FileDown size={14} /> PDF
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="input-container">
-                                    <input placeholder="Defina el objetivo estratégico..." onChange={e => setTask(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleOrchestrate()}/>
+                                    <input placeholder="Defina el objetivo estratégico..." value={task} onChange={e => setTask(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleOrchestrate()}/>
                                     <button className="btn-action" onClick={handleOrchestrate}>
                                         {loading ? <Loader2 className="spin" size={20}/> : <Rocket size={20} />}
                                     </button>
