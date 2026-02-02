@@ -1,8 +1,15 @@
 ﻿services:
   backend:
     build: ./backend
-    ports: ["5000:5000"]
-    volumes: ["./backend:/app"]
+    ports:
+      - "5000:5000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    volumes:
+      - ./backend:/app
   frontend:
     build: ./frontend
-    ports: ["3000:3000"]
+    ports:
+      - "3000:80"
+    stdin_open: true
+    tty: true

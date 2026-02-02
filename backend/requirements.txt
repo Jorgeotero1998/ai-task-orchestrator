@@ -1,4 +1,5 @@
-flask
+﻿flask
 flask-cors
-flask-sqlalchemy
+flask-restx
 requests
+pytest
