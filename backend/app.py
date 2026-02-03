@@ -1,86 +1,59 @@
 ﻿import os
-from dotenv import load_dotenv
-load_dotenv()
 from flask import Flask, request, jsonify
-from dotenv import load_dotenv
-load_dotenv()
+from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_restx import Api, Resource, fields
-import requests
-import time
-import json
-import sqlite3
+from groq import Groq
+from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__)
+# CORS configurado para que el navegador no bloquee el login
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Configuración de Swagger
-api = Api(app, version='1.0', title='AI Task Orchestrator API',
-    description='Sistema de Orquestación Neural Bio-Técnica - Desarrollado por Jorge Otero',
-    doc='/docs')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-ns = api.namespace('api', description='Operaciones principales del sistema')
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-API_KEY = os.getenv('GROQ_API_KEY')
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    name = db.Column(db.String(120))
 
-@app.route('/health')
-def health():
-    return {"status": "ok"}, 200
-DB_PATH = 'history.db'
-
-# Modelos de datos para Swagger
-task_model = api.model('Task', {
-    'title': fields.String(required=True, description='Título o mensaje de la consulta bio')
-})
-
-def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute('CREATE TABLE IF NOT EXISTS history (id TEXT, title TEXT, subtasks TEXT)')
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200))
+    subtasks = db.Column(db.Text)
 
 @app.route('/auth/login', methods=['POST'])
 def login():
-    return jsonify({'token': 'MASTER_TOKEN_AI_BIO', 'status': 'success'}), 200
+    data = request.json
+    user = User.query.filter_by(email=data.get('email')).first()
+    # Login simplificado: si existe el usuario, entra.
+    if user:
+        return jsonify({"token": "neural_token_shared_secret", "user": {"name": user.name}})
+    return jsonify({"error": "No autorizado"}), 401
 
-@ns.route('/tasks')
-class TaskList(Resource):
-    @ns.doc('list_tasks')
-    def get(self):
-        """Lista el historial de tareas desde la base de datos"""
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute('SELECT * FROM history ORDER BY rowid DESC')
-            rows = cursor.fetchall()
-            history = [dict(row) for row in rows]
-        return jsonify(history)
-
-@ns.route('/orchestrate')
-class Orchestrate(Resource):
-    @ns.expect(task_model)
-    def post(self):
-        """Orquesta una nueva tarea usando IA (Groq Llama-3)"""
-        data = request.get_json(silent=True) or {}
-        task_title = data.get('title') or data.get('message') or 'Consulta Bio'
-        try:
-            r = requests.post('https://api.groq.com/openai/v1/chat/completions', 
-                headers={'Authorization': f'Bearer {API_KEY}'}, 
-                json={
-                    'model': 'llama-3.3-70b-versatile', 
-                    'messages': [
-                        {'role': 'system', 'content': 'Eres un experto en biotecnología. Genera 5 pasos técnicos cortos separados por comas sin numeración.'}, 
-                        {'role': 'user', 'content': task_title}
-                    ]
-                }, timeout=20)
-            r.raise_for_status()
-            ai_text = r.json()['choices'][0]['message']['content']
-            steps = [s.strip() for s in ai_text.split(',')]
-            entry_id = str(int(time.time() * 1000))
-            steps_json = json.dumps(steps)
-            with sqlite3.connect(DB_PATH) as conn:
-                conn.execute('INSERT INTO history (id, title, subtasks) VALUES (?, ?, ?)', (entry_id, task_title, steps_json))
-            return {'status': 'success', 'subtasks': steps}, 200
-        except Exception as e:
-            return {'error': str(e)}, 500
+@app.route('/api/orchestrate', methods=['POST'])
+def orchestrate():
+    data = request.json
+    try:
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[
+                {"role": "system", "content": "Eres un orquestador estratégico. Responde solo con una lista de pasos cortos, uno por línea."},
+                {"role": "user", "content": data['title']}
+            ]
+        )
+        steps = completion.choices[0].message.content.split('\n')
+        steps = [s.strip() for s in steps if s.strip()]
+        return jsonify({"subtasks": steps})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    init_db()
+    with app.app_context():
+        db.create_all()
     app.run(host='0.0.0.0', port=5000, debug=True)

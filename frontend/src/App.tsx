@@ -19,7 +19,7 @@ function App() {
 
     const fetchHistory = async () => {
         try {
-            const res = await axios.get('http://127.0.0.1:3001/api/tasks', {
+            const res = await axios.get('http://127.0.0.1:5000/api/tasks', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data && Array.isArray(res.data)) setHistory(res.data);
@@ -28,7 +28,7 @@ function App() {
 
     const handleLogin = async (email, password) => {
         try {
-            const res = await axios.post('http://127.0.0.1:3001/auth/login', { email, password });
+            const res = await axios.post('http://127.0.0.1:5000/auth/login', { email, password });
             setToken(res.data.token);
             localStorage.setItem('token', res.data.token);
         } catch (err) { alert("Acceso denegado: Credenciales no válidas"); }
@@ -78,10 +78,11 @@ function App() {
         if (!task) return;
         setLoading(true);
         try {
-            const res = await axios.post('http://127.0.0.1:3001/api/orchestrate', 
+            const res = await axios.post('http://127.0.0.1:5000/api/orchestrate', 
                 { title: task }, { headers: { Authorization: `Bearer ${token}` } }
             );
-            const rawData = res.data?.subtasks || [];
+                        const rawData = res.data?.subtasks || res.data?.steps || (Array.isArray(res.data) ? res.data : [res.data]);
+            setResult(Array.isArray(rawData) ? rawData : [rawData]);
             setResult(Array.isArray(rawData) ? rawData : [rawData]);
             setCompletedSteps([]);
             fetchHistory();

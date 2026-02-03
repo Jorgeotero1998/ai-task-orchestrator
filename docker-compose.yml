@@ -1,4 +1,4 @@
-﻿services:
+services:
   backend:
     build: ./backend
     container_name: ai-bio-backend
