@@ -1,5 +1,9 @@
 ﻿import os
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+load_dotenv()
 from flask_cors import CORS
 from flask_restx import Api, Resource, fields
 import requests
@@ -18,6 +22,10 @@ api = Api(app, version='1.0', title='AI Task Orchestrator API',
 ns = api.namespace('api', description='Operaciones principales del sistema')
 
 API_KEY = os.getenv('GROQ_API_KEY')
+
+@app.route('/health')
+def health():
+    return {"status": "ok"}, 200
 DB_PATH = 'history.db'
 
 # Modelos de datos para Swagger

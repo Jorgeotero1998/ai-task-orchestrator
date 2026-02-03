@@ -5,3 +5,8 @@ requests
 pytest
 pytest
 pytest-mock
+python-dotenv
+flask-sqlalchemy
+flask-bcrypt
+flask-restx
+groq

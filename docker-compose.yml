@@ -1,15 +1,31 @@
 ﻿services:
   backend:
     build: ./backend
+    container_name: ai-bio-backend
     ports:
       - "5000:5000"
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
     volumes:
       - ./backend:/app
+      - ai_bio_db_data:/app/instance  # Donde Flask-SQLAlchemy suele crear la DB
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/health\")'"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   frontend:
     build: ./frontend
+    container_name: ai-bio-frontend
     ports:
       - "3000:80"
     stdin_open: true
     tty: true
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  ai_bio_db_data:
