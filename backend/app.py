@@ -27,6 +27,11 @@ class Task(db.Model):
     title = db.Column(db.String(200))
     subtasks = db.Column(db.Text)
 
+
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy'}), 200
+
 @app.route('/auth/login', methods=['POST'])
 def login():
     data = request.json
