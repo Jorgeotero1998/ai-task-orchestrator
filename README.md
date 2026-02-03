@@ -1,4 +1,4 @@
-﻿# AI-BIO: Neural Task Orchestrator
+﻿# AI-BIO: Orchestrator
 
 ## Descripción General
 AI-BIO es un sistema de orquestación de tareas técnicas especializado en biotecnología, diseñado para desglosar objetivos estratégicos complejos en protocolos operativos detallados. La plataforma utiliza inteligencia artificial generativa a través de la API de Groq para transformar una instrucción simple en una secuencia lógica de pasos técnicos.
