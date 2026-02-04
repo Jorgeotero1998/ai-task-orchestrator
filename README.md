@@ -19,6 +19,7 @@ Sistema de orquestación de objetivos de alto rendimiento impulsado por intelige
 
 - SCREENSHOTS:
 <img width="955" height="431" alt="Screen1" src="https://github.com/user-attachments/assets/3c21c120-bee7-4c0b-8e44-562700550169" />
+<img width="1916" height="877" alt="Screenshot 2026-02-03 160031" src="https://github.com/user-attachments/assets/9cf35c2a-2f02-40b5-990f-05f59dc7c657" />
 <img width="751" height="424" alt="SCREEN4" src="https://github.com/user-attachments/assets/2a18ee30-c1d5-4e88-82c6-6cadb7b2c419" />
 <img width="906" height="430" alt="SCREEN3" src="https://github.com/user-attachments/assets/6b183602-a707-485c-b22f-bc64f7ab5448" />
 
