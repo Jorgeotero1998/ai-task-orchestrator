@@ -17,6 +17,17 @@ Sistema de orquestación de objetivos de alto rendimiento impulsado por intelige
 - **Base de Datos:** SQLite con ORM SQLAlchemy.
 - **Infraestructura:** Contenerización con Docker y Docker Compose.
 
+- SCREENSHOTS:
+<img width="955" height="431" alt="Screen1" src="https://github.com/user-attachments/assets/3c21c120-bee7-4c0b-8e44-562700550169" />
+<img width="751" height="424" alt="SCREEN4" src="https://github.com/user-attachments/assets/2a18ee30-c1d5-4e88-82c6-6cadb7b2c419" />
+<img width="906" height="430" alt="SCREEN3" src="https://github.com/user-attachments/assets/6b183602-a707-485c-b22f-bc64f7ab5448" />
+
+
+
+
+
+
+
 ---
 
 ## [EN] - Project Overview
