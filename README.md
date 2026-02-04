@@ -1,4 +1,4 @@
-﻿# 🧠 AI Bio-Task Orchestrator
+﻿# AI -Task
 
 ## [ES] - Descripción General
 Sistema de orquestación de objetivos de alto rendimiento impulsado por inteligencia artificial. Esta plataforma permite la descomposición de metas complejas en tareas granulares y accionables mediante el motor de inferencia de **Groq**, garantizando una latencia mínima y precisión en la generación de pasos.
