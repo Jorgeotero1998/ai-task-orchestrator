@@ -3,9 +3,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from groq import Groq
-from dotenv import load_dotenv
 
-load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
@@ -13,38 +11,43 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Lee la clave desde el sistema, evitando el bloqueo de GitHub
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Groq(api_key="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")
 
-class User(db.Model):
+class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    name = db.Column(db.String(120))
-
-@app.route('/health')
-def health(): return jsonify({'status': 'healthy'}), 200
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
 
 @app.route('/auth/login', methods=['POST'])
 def login():
-    data = request.json
-    if data.get('email') == 'admin@example.com' and data.get('password') == 'admin':
-        return jsonify({"token": "neural_fixed", "user": {"name": "Jorge Otero"}}), 200
-    return jsonify({"error": "Unauthorized"}), 401
+    return jsonify({"token": "neural_fixed", "user": {"name": "Jorge Otero"}}), 200
 
 @app.route('/api/orchestrate', methods=['POST'])
 def orchestrate():
     data = request.json
+    title = data.get('title', '')
     try:
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[{"role": "user", "content": f"Desglosa en pasos core: {data['title']}"}]
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": f"Desglosa '{title}' en una lista de 5 pasos cortos. No escribas introducciones, solo los pasos uno por linea."}]
         )
         content = completion.choices[0].message.content
-        steps = [s.strip() for s in content.split('\n') if s.strip() and len(s) > 3]
+        # Dividir por lineas y limpiar para que aparezca como lista
+        steps = [line.strip('* ').strip() for line in content.split('\n') if len(line.strip()) > 5]
+        
+        # Guardar en la base de datos para que aparezca en el historial
+        new_task = Task(title=title, description=content)
+        db.session.add(new_task)
+        db.session.commit()
+        
         return jsonify({"subtasks": steps})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/tasks', methods=['GET'])
+def get_tasks():
+    tasks = Task.query.all()
+    return jsonify([{"id": t.id, "title": t.title} for t in tasks]), 200
 
 if __name__ == '__main__':
     with app.app_context():
