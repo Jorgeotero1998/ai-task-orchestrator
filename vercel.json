@@ -3,7 +3,6 @@
   "installCommand": "cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/.next",
-  "framework": "nextjs",
   "functions": {
     "api/index.py": {
       "maxDuration": 60
