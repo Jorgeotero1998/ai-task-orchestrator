@@ -1,60 +1,72 @@
-﻿# AI -Task
+﻿# AI Task Orchestrator
 
-## [ES] - Descripción General
-Sistema de orquestación de objetivos de alto rendimiento impulsado por inteligencia artificial. Esta plataforma permite la descomposición de metas complejas en tareas granulares y accionables mediante el motor de inferencia de **Groq**, garantizando una latencia mínima y precisión en la generación de pasos.
+Portfolio-ready AI orchestration product that breaks a goal into **5 actionable steps** (Groq LLM), persists results to Postgres, and ships with a production deploy path.
 
-### 🚀 Características Principales
-- **Autenticación Segura:** Sistema de acceso administrativo optimizado para una gestión directa.
-- **Orquestación Neuronal:** Generación dinámica de subtareas mediante el modelo **Llama 3.3**, procesando peticiones en milisegundos.
-- **Exportación de Reportes:** Funcionalidad integrada para la generación de informes técnicos en formato PDF.
-- **Persistencia de Datos:** Historial completo de objetivos y tareas almacenado mediante una arquitectura de base de datos robusta.
-- **Interfaz Bio-Hack:** UI/UX minimalista diseñada para maximizar el enfoque y la productividad técnica.
+## Live demo
+- **Web**: (set after deploy)
+- **API**: (set after deploy)
 
-### 🛠️ Stack Tecnológico
-- **Backend:** Python con Flask y el SDK oficial de Groq.
-- **Frontend:** React + Vite para una experiencia de usuario ágil y reactiva.
-- **IA:** Modelos de lenguaje de gran escala (LLM) integrados vía Groq API.
-- **Base de Datos:** SQLite con ORM SQLAlchemy.
-- **Infraestructura:** Contenerización con Docker y Docker Compose.
+## What’s deployed
+- **Web**: Next.js 15 + React 19 dashboard (`frontend/`)
+- **API**: FastAPI + SQLAlchemy + Alembic (`backend/`)
+- **DB**: Postgres (recommended: Neon)
 
-- SCREENSHOTS:
-<img width="955" height="431" alt="Screen1" src="https://github.com/user-attachments/assets/3c21c120-bee7-4c0b-8e44-562700550169" />
-<img width="1916" height="877" alt="Screenshot 2026-02-03 160031" src="https://github.com/user-attachments/assets/9cf35c2a-2f02-40b5-990f-05f59dc7c657" />
-<img width="751" height="424" alt="SCREEN4" src="https://github.com/user-attachments/assets/2a18ee30-c1d5-4e88-82c6-6cadb7b2c419" />
-<img width="906" height="430" alt="SCREEN3" src="https://github.com/user-attachments/assets/6b183602-a707-485c-b22f-bc64f7ab5448" />
+## Health checks
+- **API**: `GET /health` → `{"status":"ok"}`
+- **Web**: `GET /api/health` → checks backend reachability
 
+## Local development (Docker)
+1) Copy env template:
 
+```bash
+cp .env.example .env
+```
 
+2) Start the stack:
 
+```bash
+docker compose up -d --build
+```
 
+3) Open:
+- **Web**: `http://localhost:3000`
+- **API**: `http://localhost:8000`
 
+## Configuration (env vars)
+See `.env.example`. Minimum production env vars:
+- **API**: `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `GROQ_API_KEY`
+- **Web**: `NEXT_PUBLIC_API_BASE_URL` (and optionally `API_BASE_URL_INTERNAL`)
 
----
+## Migrations
+- The API container runs `alembic upgrade head` on startup.
+- To run manually:
 
-## [EN] - Project Overview
-A high-performance goal orchestration system powered by artificial intelligence. This platform enables the decomposition of complex objectives into granular, actionable tasks using **Groq's** inference engine, ensuring minimal latency and precision in task generation.
+```bash
+docker compose exec backend alembic -c alembic.ini upgrade head
+```
 
-### 🚀 Key Features
-- **Secure Authentication:** Optimized administrative access system for direct management.
-- **Neural Orchestration:** Dynamic subtask generation powered by **Llama 3.3**, processing requests in milliseconds.
-- **Report Exporting:** Integrated functionality for generating technical reports in PDF format.
-- **Data Persistence:** Comprehensive goal and task history stored via a robust database architecture.
-- **Bio-Hack UI:** Minimalist UI/UX designed to maximize focus and technical productivity.
+## Production deploy (Vercel + Render + Neon)
+### Backend (Render)
+1) Create a Neon Postgres database and copy the connection string.
+2) Create a new Render **Web Service** from this GitHub repo (Blueprint supported via `render.yaml`).
+3) Set env vars on Render:
+- `DATABASE_URL`: Neon connection string
+- `JWT_SECRET`: strong random value
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`: admin credentials
+- `GROQ_API_KEY`: your Groq API key
+- `CORS_ORIGINS_CSV`: allowed web origins (ex: `https://<your-vercel-domain>`)
+4) Verify:
+- `GET https://<render-service>/health`
 
-### 🛠️ Tech Stack
-- **Backend:** Python (Flask) with official Groq SDK.
-- **Frontend:** React + Vite for a fast and reactive user experience.
-- **IA:** Large Language Models (LLM) via Groq API.
-- **Database:** SQLite with SQLAlchemy ORM.
-- **Infrastructure:** Full containerization with Docker and Docker Compose.
+### Frontend (Vercel)
+1) Import repo in Vercel and set **Root Directory** to `frontend/`.
+2) Set env vars on Vercel:
+- `NEXT_PUBLIC_API_BASE_URL=https://<render-service>`
+- `API_BASE_URL_INTERNAL=https://<render-service>` (used by `/api/health`)
+3) Verify:
+- `GET https://<vercel-app>/api/health`
 
----
+## Security notes
+- **No secrets are committed**. Configure via platform env vars.
+- If you ever committed an API key, rotate it in your provider dashboard.
 
-## 🛠️ Setup & Deployment
-1. Clone the repository / Clonar el repositorio.
-2. Configure your GROQ_API_KEY in the .env file / Configurar la API Key en el archivo .env.
-3. Build and Start / Construir e iniciar: `docker-compose up -d --build`
-4. Access / Acceso: http://localhost:3000
-
----
-*Developed & Optimized by Jorge Otero - 2026*
