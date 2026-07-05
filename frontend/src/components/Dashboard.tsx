@@ -26,8 +26,12 @@ type HistoryItem = {
 
 export default function Dashboard() {
   const apiBase = useMemo(() => {
-    const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-    return raw.replace(/\/$/, "");
+    const raw = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (raw) return raw.replace(/\/$/, "");
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+      return "/api";
+    }
+    return "http://localhost:8000";
   }, []);
 
   const [token, setToken] = useState<string>("");
