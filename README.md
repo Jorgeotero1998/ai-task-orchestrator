@@ -3,8 +3,8 @@
 Portfolio-ready AI orchestration product that breaks a goal into **5 actionable steps** (Groq LLM), persists results to Postgres, and ships with a production deploy path.
 
 ## Live demo
-- **Web**: (set after deploy)
-- **API**: (set after deploy)
+- **Web**: https://ai-task-orchestrator-inky.vercel.app
+- **API**: (deploy backend to Render with `render.yaml` – see Production deploy section)
 
 ## What’s deployed
 - **Web**: Next.js 15 + React 19 dashboard (`frontend/`)
