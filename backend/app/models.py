@@ -1,14 +1,24 @@
-﻿from flask_sqlalchemy import SQLAlchemy
+﻿from __future__ import annotations
 
-db = SQLAlchemy()
+import uuid
+from datetime import datetime
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
+from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=False)  # USAMOS CONTENT SIEMPRE
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+from app.db import Base
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    subtasks: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    raw_response: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
