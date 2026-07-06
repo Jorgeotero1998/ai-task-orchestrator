@@ -6,6 +6,9 @@ Portfolio-ready AI orchestration product that breaks a goal into **5 actionable 
 
 ## Demo login (live site)
 
+<img width="1907" height="892" alt="Captura de pantalla 2026-07-06 121655" src="https://github.com/user-attachments/assets/4fc4d2dc-55e4-4e1f-ad42-2adb2b5ac1ec" />
+
+
 | Field | Value |
 |-------|-------|
 | Email | `admin@example.com` |
