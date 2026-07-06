@@ -1,10 +1,15 @@
 ﻿# AI Task Orchestrator
 
-Portfolio-ready AI orchestration product that breaks a goal into **5 actionable steps** (Groq LLM), persists results to Postgres, and ships with a production deploy path.
-## Loggin
+**Live Demo:** [https://ai-task-orchestrator-inky.vercel.app/](https://ai-task-orchestrator-inky.vercel.app/)
 
-Email: admin@example.com
-Password: change-me
+Portfolio-ready AI orchestration product that breaks a goal into **5 actionable steps** (Groq LLM), persists results to Postgres, and ships with a production deploy path.
+
+## Demo login (live site)
+
+| Field | Value |
+|-------|-------|
+| Email | `admin@example.com` |
+| Password | `change-me` |
 
 ## Live demo
 - **Web**: https://ai-task-orchestrator-inky.vercel.app
