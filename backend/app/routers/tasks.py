@@ -12,7 +12,7 @@ from app.schemas import OrchestrateRequest, OrchestrateResponse, TaskOut
 from app.security import require_auth
 from app.services.orchestrator import orchestrate_steps
 
-router = APIRouter(prefix="/api", tags=["tasks"])
+router = APIRouter(tags=["tasks"])
 
 
 @router.get("/tasks", response_model=list[TaskOut])
