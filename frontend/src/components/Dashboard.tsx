@@ -82,6 +82,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState<boolean>(false);
   const [authLoading, setAuthLoading] = useState<boolean>(false);
   const [showSignIn, setShowSignIn] = useState<boolean>(false);
+  const [showRegister, setShowRegister] = useState<boolean>(false);
   const [email, setEmail] = useState<string>("admin@example.com");
   const [password, setPassword] = useState<string>("");
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -201,14 +202,53 @@ export default function Dashboard() {
     setAuthLoading(true);
     try {
       const res = await axios.post(api.authLogin, { email, password }, { timeout: AXIOS_TIMEOUT_MS });
-      startSession(res.data.token, "Signed in as admin", "admin");
+      startSession(res.data.token, "Signed in successfully", "admin");
       window.localStorage.setItem("auth_mode", "admin");
-    } catch {
-      pushToast("Invalid credentials", "error");
+      setShowSignIn(false);
+      setShowRegister(false);
+    } catch (err) {
+      if (axios.isAxiosError(err) && !err.response) {
+        pushToast("Cannot reach server. Try again in a moment.", "error");
+      } else {
+        pushToast("Invalid credentials", "error");
+      }
     } finally {
       setAuthLoading(false);
     }
   }, [api.authLogin, email, password, pushToast, startSession]);
+
+  const handleRegister = useCallback(async () => {
+    if (!email || !password) {
+      pushToast("Enter email and password", "error");
+      return;
+    }
+    if (password.length < 8) {
+      pushToast("Password must be at least 8 characters", "error");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await axios.post(api.authRegister, { email, password }, { timeout: AXIOS_TIMEOUT_MS });
+      startSession(res.data.token, "Account created — welcome", "admin");
+      window.localStorage.setItem("auth_mode", "admin");
+      setShowRegister(false);
+      setShowSignIn(false);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const detail = err.response?.data?.detail;
+        pushToast(typeof detail === "string" ? detail : "Could not create account", "error");
+      } else {
+        pushToast("Could not create account", "error");
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [api.authRegister, email, password, pushToast, startSession]);
+
+  const handleTryDemo = useCallback(async () => {
+    const ok = await startGuestSession();
+    if (ok) pushToast("Guest session ready — explore with sample plans", "success");
+  }, [pushToast, startGuestSession]);
 
   const handleLogout = useCallback(async () => {
     window.localStorage.removeItem("auth_mode");
@@ -433,21 +473,45 @@ export default function Dashboard() {
               <button
                 type="button"
                 className="btn btn--primary btn--block"
-                onClick={handleGuestStart}
+                onClick={handleTryDemo}
                 disabled={authLoading}
               >
-                {authLoading ? <Loader2 size={18} className="spin" /> : <Rocket size={18} />}
-                Get started
+                {authLoading ? <Loader2 size={18} className="spin" /> : <Sparkles size={18} />}
+                Try demo
               </button>
-              <p className="hero-hint">Free guest access — no sign-up required.</p>
+              <p className="hero-hint">Instant guest access — no account needed.</p>
+
+              <div className="auth-hints">
+                <p>
+                  <strong>Admin:</strong> admin@example.com / Admin1234!
+                </p>
+                <p>
+                  <strong>Demo login:</strong> demo@orchestrator.dev / Demo1234!
+                </p>
+              </div>
 
               <button
                 type="button"
                 className="link-btn"
                 aria-expanded={showSignIn}
-                onClick={() => setShowSignIn((s) => !s)}
+                onClick={() => {
+                  setShowSignIn((s) => !s);
+                  setShowRegister(false);
+                }}
               >
-                {showSignIn ? "Hide sign in" : "Sign in with admin account"}
+                {showSignIn ? "Hide sign in" : "Sign in"}
+              </button>
+
+              <button
+                type="button"
+                className="link-btn"
+                aria-expanded={showRegister}
+                onClick={() => {
+                  setShowRegister((s) => !s);
+                  setShowSignIn(false);
+                }}
+              >
+                {showRegister ? "Hide register" : "Create account"}
               </button>
 
               <AnimatePresence>
@@ -479,12 +543,52 @@ export default function Dashboard() {
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
+                        placeholder="Admin1234!"
                       />
                     </label>
                     <button type="submit" className="btn btn--ghost btn--block" disabled={authLoading}>
                       {authLoading ? <Loader2 size={16} className="spin" /> : null}
                       Sign in
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {showRegister && (
+                  <motion.form
+                    className="signin"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleRegister();
+                    }}
+                  >
+                    <label className="field">
+                      <span>Email</span>
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@company.com"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Password (8+ characters)</span>
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Create a password"
+                      />
+                    </label>
+                    <button type="submit" className="btn btn--ghost btn--block" disabled={authLoading}>
+                      {authLoading ? <Loader2 size={16} className="spin" /> : null}
+                      Create account
                     </button>
                   </motion.form>
                 )}
@@ -819,6 +923,10 @@ function Styles() {
       .hero-features li { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); padding: 7px 12px; border-radius: 999px; }
       .hero-features svg { color: var(--cyan); }
       .hero-hint { text-align: center; color: var(--text-faint); font-size: 12px; margin: 12px 0 8px; }
+      .auth-hints { margin: 16px 0 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); font-size: 11.5px; color: var(--text-dim); line-height: 1.55; }
+      .auth-hints p { margin: 0 0 6px; }
+      .auth-hints p:last-child { margin-bottom: 0; }
+      .auth-hints strong { color: var(--text); font-weight: 600; }
       .link-btn { display: block; margin: 8px auto 0; background: none; border: none; color: var(--text-dim); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
       .link-btn:hover { color: var(--text); }
       .signin { overflow: hidden; display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }

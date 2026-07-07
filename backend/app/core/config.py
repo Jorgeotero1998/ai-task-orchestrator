@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     jwt_exp_minutes: int = 60 * 24 * 7  # 7 days
 
     admin_email: str = "admin@example.com"
-    admin_password: str = "change-me"
+    admin_password: str = "Admin1234!"
 
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"

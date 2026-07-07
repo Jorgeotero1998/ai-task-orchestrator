@@ -8,6 +8,7 @@ export function createApiClient(apiBase: string) {
   return {
     authDemo: `${base}/auth/demo`,
     authLogin: `${base}/auth/login`,
+    authRegister: `${base}/auth/register`,
     tasks: `${apiPrefix}/tasks`,
     task: (id: string) => `${apiPrefix}/tasks/${id}`,
     orchestrate: `${apiPrefix}/orchestrate`,

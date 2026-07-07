@@ -1,5 +1,5 @@
 def _login(client) -> str:
-    resp = client.post("/auth/login", json={"email": "admin@example.com", "password": "admin"})
+    resp = client.post("/auth/login", json={"email": "admin@example.com", "password": "Admin1234!"})
     assert resp.status_code == 200
     return resp.json()["token"]
 
@@ -34,6 +34,27 @@ def test_demo_login_issues_token(client):
     titles = [t["title"] for t in tasks.json()]
     assert len(titles) == 3
     assert "Launch a tech podcast in 30 days" in titles
+
+
+def test_seeded_admin_login(client):
+    resp = client.post("/auth/login", json={"email": "admin@example.com", "password": "Admin1234!"})
+    assert resp.status_code == 200
+    assert resp.json()["token"]
+
+
+def test_seeded_demo_user_login(client):
+    resp = client.post("/auth/login", json={"email": "demo@orchestrator.dev", "password": "Demo1234!"})
+    assert resp.status_code == 200
+    assert resp.json()["token"]
+
+
+def test_register_and_login(client):
+    resp = client.post("/auth/register", json={"email": "new@example.com", "password": "Secret123!"})
+    assert resp.status_code == 201
+    token = resp.json()["token"]
+    assert token
+    login = client.post("/auth/login", json={"email": "new@example.com", "password": "Secret123!"})
+    assert login.status_code == 200
 
 
 def test_tasks_scoped_to_owner(client, monkeypatch):

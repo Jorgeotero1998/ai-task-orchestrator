@@ -12,7 +12,7 @@ def _test_env():
     )
     os.environ.setdefault("JWT_SECRET", "test-secret")
     os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
-    os.environ.setdefault("ADMIN_PASSWORD", "admin")
+    os.environ.setdefault("ADMIN_PASSWORD", "Admin1234!")
 
 
 @pytest.fixture()
