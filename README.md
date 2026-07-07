@@ -1,8 +1,33 @@
 ﻿# AI Task Orchestrator
 
-**Live Demo:** [https://ai-task-orchestrator-inky.vercel.app/](https://ai-task-orchestrator-inky.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-ai--task--orchestrator--inky.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ai-task-orchestrator-inky.vercel.app/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![Groq](https://img.shields.io/badge/Groq_LLM-FF6B35?style=flat-square)](https://groq.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 
-Portfolio-ready AI orchestration product that breaks a goal into **5 actionable steps** (Groq LLM), persists results to Postgres, and ships with a production deploy path.
+**Live:** [ai-task-orchestrator-inky.vercel.app](https://ai-task-orchestrator-inky.vercel.app/) · **Stack:** Next.js/React + FastAPI + PostgreSQL + Groq LLM on Vercel
+
+An AI orchestration product that decomposes a strategic goal into **actionable steps** using **Groq's Llama 3.3**, persists results to Postgres, and ships with a production deploy path.
+
+<p align="center">
+  <a href="https://ai-task-orchestrator-inky.vercel.app/">
+    <img src="docs/screenshot.png" width="820" alt="AI Task Orchestrator — live dashboard"/>
+  </a>
+  <br/>
+  <sub><i>Live "Orchestrator Dash" — enter a goal and generate an executable plan.</i></sub>
+</p>
+
+### Architecture
+
+```
+React / Next.js dashboard  ──▶  FastAPI  /api  ──▶  Groq LLM (Llama 3.3)
+                                    │
+                                    ▼
+                        SQLAlchemy + Alembic ──▶ PostgreSQL (Neon)
+```
+Single Vercel deploy — front-end at `/`, FastAPI at `/api/*`. JWT admin auth, secrets in env vars.
 
 ## Try it instantly
 
