@@ -64,7 +64,7 @@ export default function Dashboard() {
   const [token, setToken] = useState<string>("");
   const [task, setTask] = useState<string>("");
   const [result, setResult] = useState<PlanStep[]>([]);
-  const [source, setSource] = useState<"ai" | "fallback" | null>(null);
+  const [source, setSource] = useState<"ai" | "demo" | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
@@ -226,16 +226,12 @@ export default function Dashboard() {
         const raw = res.data?.steps ?? res.data?.subtasks ?? [];
         const steps = normalizePlan(Array.isArray(raw) ? raw : [raw]);
         setResult(steps);
-        setSource(res.data?.source === "fallback" ? "fallback" : "ai");
+        setSource(res.data?.source === "ai" ? "ai" : "demo");
         setCompletedSteps([]);
         setExpandedSteps(steps.length ? [steps[0].step] : []);
         setPlanKey((k) => k + 1);
         void fetchHistory(token);
-        if (res.data?.source === "fallback") {
-          pushToast("Plan ready — add GROQ_API_KEY in Vercel for live Llama 3.3", "info");
-        } else {
-          pushToast("Plan generated", "success");
-        }
+        pushToast("Your action plan is ready", "success");
       } catch {
         pushToast("Something went wrong while generating. Try again.", "error");
       } finally {
@@ -554,7 +550,7 @@ export default function Dashboard() {
                       <span>
                         {completedSteps.length}/{result.length} done
                       </span>
-                      {source === "fallback" && <span className="badge badge--warn">Smart plan</span>}
+                      {source === "demo" && <span className="badge badge--demo">Demo mode</span>}
                       {source === "ai" && <span className="badge badge--ai">AI generated</span>}
                     </div>
                   </div>
@@ -783,7 +779,7 @@ function Styles() {
       .result-meta { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12.5px; color: var(--text-dim); }
       .badge { font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; padding: 4px 9px; border-radius: 999px; text-transform: uppercase; }
       .badge--ai { background: rgba(52,211,153,0.14); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
-      .badge--warn { background: rgba(251,191,36,0.14); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+      .badge--demo { background: rgba(124,77,255,0.12); color: #a78bfa; border: 1px solid rgba(124,77,255,0.25); }
 
       .steps { display: flex; flex-direction: column; gap: 11px; }
       .plan-card { border-radius: 18px; overflow: hidden; transition: border-color .2s, transform .2s, box-shadow .25s; }

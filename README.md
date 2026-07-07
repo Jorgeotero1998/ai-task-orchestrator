@@ -40,20 +40,26 @@ Prefer the manual landing? Add `?admin=1` to the URL, or use **“Sign in as adm
 | Email | `admin@example.com` |
 | Password | `change-me` |
 
-## Enabling real AI (Groq) — required for live Llama 3.3
+## AI modes (always works on live)
 
-**Root cause when AI shows "Smart plan" instead of "AI generated":** `GROQ_API_KEY` is not set on the Vercel deployment. The app still works via a goal-aware fallback, but live LLM output requires this key.
+| Mode | When | Badge in UI |
+|------|------|-------------|
+| **Demo mode** | `GROQ_API_KEY` missing or Groq error | Built-in orchestrator — structured plan with priorities & timelines |
+| **AI generated** | Groq Llama 3.3 configured | Live LLM decomposition |
 
-1. Create a free key at [console.groq.com/keys](https://console.groq.com/keys).
-2. Open [Vercel Dashboard](https://vercel.com) → your project → **Settings** → **Environment Variables**.
-3. Add:
-   | Name | Value | Environments |
-   |------|-------|--------------|
-   | `GROQ_API_KEY` | `gsk_…` (your key) | Production, Preview |
-   | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Production, Preview *(optional)* |
-4. Go to **Deployments** → latest deploy → **⋯** → **Redeploy** (required — env vars are not picked up until redeploy).
-5. Verify: `GET https://ai-task-orchestrator-inky.vercel.app/api/health` → `"ai": {"configured": true, …}`
-6. In the app, submit a goal — badge should read **AI generated** with structured steps (title, priority, timeline).
+The live demo **never breaks**: without Groq it uses a goal-aware built-in orchestrator (not an error).
+
+### Enable live Groq AI (3 steps)
+
+**Current status:** `GROQ_API_KEY` is **not** set on Vercel production (verified via `vercel env ls`). Until you add it, the app runs in Demo mode.
+
+1. **Get a free key** at [console.groq.com/keys](https://console.groq.com/keys) (Groq free tier).
+2. **Vercel →** [ai-task-orchestrator project](https://vercel.com) → **Settings** → **Environment Variables** → **Add**:
+   - Name: `GROQ_API_KEY` · Value: `gsk_…` · Environments: **Production** + **Preview**
+   - *(Optional)* Name: `GROQ_MODEL` · Value: `llama-3.3-70b-versatile`
+3. **Redeploy:** Deployments → latest → **⋯** → **Redeploy** (env vars apply only after redeploy).
+
+Verify: `GET https://ai-task-orchestrator-inky.vercel.app/api/health` → `"ai":{"configured":true}`. Submit a goal → badge shows **AI generated**.
 
 ## Live demo
 - **Web**: https://ai-task-orchestrator-inky.vercel.app

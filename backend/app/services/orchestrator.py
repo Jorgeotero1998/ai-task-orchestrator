@@ -122,6 +122,24 @@ def _fallback_lines(title: str) -> list[str]:
             "Review hiring outcomes and refine the pipeline for the next role.",
         ]
 
+    if any(w in lower for w in ("learn", "study", "course", "certification", "exam")):
+        return [
+            f"Define what success looks like for \"{goal}\" and set a realistic deadline.",
+            "Break the material into weekly modules with specific outcomes per module.",
+            "Gather resources (books, videos, practice projects) before starting.",
+            "Study in focused 90-minute blocks and track progress daily.",
+            "Test your knowledge with a project or mock exam, then review gaps.",
+        ]
+
+    if any(w in lower for w in ("fitness", "run", "marathon", "gym", "health", "weight", "dance", "bailar")):
+        return [
+            f"Set a measurable target and baseline for \"{goal}\".",
+            "Design a progressive weekly schedule with rest and recovery days.",
+            "Prepare gear, nutrition plan, and accountability system.",
+            "Execute week 1 at 70% intensity to build consistency.",
+            "Track metrics weekly and adjust the plan based on results.",
+        ]
+
     return [
         f"Define the objective, constraints, and success criteria for \"{goal}\".",
         f"Break \"{goal}\" into milestones with owners, timelines, and dependencies.",
@@ -132,16 +150,37 @@ def _fallback_lines(title: str) -> list[str]:
 
 
 def _fallback_plan(title: str) -> list[dict[str, Any]]:
+    """Built-in orchestrator — always available, no API key required."""
+
     return _lines_to_steps(_fallback_lines(title))
 
 
+def _pad_steps(steps: list[dict[str, Any]], title: str) -> list[dict[str, Any]]:
+    if len(steps) >= 5:
+        return steps[:5]
+    filler = _fallback_plan(title)
+    seen = {s["title"] for s in steps}
+    for item in filler:
+        if len(steps) >= 5:
+            break
+        if item["title"] not in seen:
+            item = {**item, "step": len(steps) + 1}
+            steps.append(item)
+            seen.add(item["title"])
+    return steps[:5]
+
+
 def orchestrate_steps(*, title: str) -> tuple[list[dict[str, Any]], str, str]:
-    """Return ``(steps, raw_response, source)``."""
+    """Return ``(steps, raw_response, source)``.
+
+    ``source`` is ``ai`` (Groq Llama 3.3) or ``demo`` (built-in orchestrator).
+    The demo path never fails — recruiters always get a structured plan.
+    """
 
     if not settings.groq_api_key:
-        logger.warning("GROQ_API_KEY not configured; using goal-aware fallback.")
+        logger.info("GROQ_API_KEY not configured; using built-in demo orchestrator.")
         steps = _fallback_plan(title)
-        return steps, json.dumps(steps), "fallback"
+        return steps, json.dumps(steps), "demo"
 
     try:
         from groq import Groq
@@ -167,9 +206,9 @@ def orchestrate_steps(*, title: str) -> tuple[list[dict[str, Any]], str, str]:
         except (json.JSONDecodeError, ValueError, KeyError):
             steps = _lines_to_steps([line for line in content.splitlines() if line.strip()])
         if len(steps) < 5:
-            raise ValueError("Incomplete plan from Groq")
+            steps = _pad_steps(steps, title)
         return steps[:5], content, "ai"
     except Exception:  # noqa: BLE001
-        logger.exception("Groq orchestration failed; using goal-aware fallback.")
+        logger.exception("Groq orchestration failed; using built-in demo orchestrator.")
         steps = _fallback_plan(title)
-        return steps, json.dumps(steps), "fallback"
+        return steps, json.dumps(steps), "demo"

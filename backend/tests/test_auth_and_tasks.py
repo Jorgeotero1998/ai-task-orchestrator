@@ -72,7 +72,7 @@ def test_orchestrate_fallback_without_key(client, monkeypatch):
     body = resp.json()
     assert len(body["steps"]) == 5
     assert len(body["subtasks"]) == 5
-    assert body["source"] == "fallback"
+    assert body["source"] == "demo"
     assert body["steps"][0]["title"]
 
 
