@@ -14,13 +14,14 @@ import {
   Loader2,
   LogOut,
   Menu,
-  Play,
   Rocket,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import BrandLogo from "./BrandLogo";
+import { createApiClient } from "../lib/api";
 import MeshBackground from "./ambient/MeshBackground";
 import OrchestrationLoader from "./OrchestrationLoader";
 
@@ -50,6 +51,14 @@ const EXAMPLE_GOALS = [
 ];
 
 const PRODUCT_NAME = "AI Task Orchestrator";
+const AXIOS_TIMEOUT_MS = 12000;
+
+function formatPlanDate(value?: string): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export default function Dashboard() {
   const apiBase = useMemo(() => {
@@ -60,6 +69,8 @@ export default function Dashboard() {
     }
     return "http://localhost:8000";
   }, []);
+
+  const api = useMemo(() => createApiClient(apiBase), [apiBase]);
 
   const [token, setToken] = useState<string>("");
   const [task, setTask] = useState<string>("");
@@ -77,6 +88,8 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [booting, setBooting] = useState<boolean>(true);
   const [planKey, setPlanKey] = useState<number>(0);
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<"guest" | "admin">("guest");
   const toastId = useRef(0);
 
   const pushToast = useCallback((message: string, type: Toast["type"] = "info") => {
@@ -114,16 +127,34 @@ export default function Dashboard() {
   const fetchHistory = useCallback(
     async (authToken: string) => {
       try {
-        const res = await axios.get(`${apiBase}/api/tasks`, {
+        const res = await axios.get(api.tasks, {
           headers: { Authorization: `Bearer ${authToken}` },
+          timeout: AXIOS_TIMEOUT_MS,
         });
         if (Array.isArray(res.data)) setHistory(res.data);
       } catch {
-        // Non-critical: history is a nice-to-have.
+        pushToast("Could not load plan history", "error");
       }
     },
-    [apiBase],
+    [api.tasks, pushToast],
   );
+
+  const startGuestSession = useCallback(async () => {
+    setAuthLoading(true);
+    try {
+      const res = await axios.post(api.authDemo, undefined, { timeout: AXIOS_TIMEOUT_MS });
+      setToken(res.data.token);
+      setAuthMode("guest");
+      window.localStorage.setItem("token", res.data.token);
+      window.localStorage.removeItem("auth_mode");
+      return true;
+    } catch {
+      pushToast("Could not connect. Check your network and retry.", "error");
+      return false;
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [api.authDemo, pushToast]);
 
   useEffect(() => {
     document.title = PRODUCT_NAME;
@@ -131,52 +162,36 @@ export default function Dashboard() {
 
     if (params.get("admin") === "1") {
       const stored = window.localStorage.getItem("token");
-      if (stored) setToken(stored);
+      if (stored) {
+        setToken(stored);
+        setAuthMode(window.localStorage.getItem("auth_mode") === "admin" ? "admin" : "guest");
+      }
       setBooting(false);
       return;
     }
 
     setAuthLoading(true);
-    axios
-      .post(`${apiBase}/auth/demo`)
-      .then((res) => {
-        setToken(res.data.token);
-        window.localStorage.setItem("token", res.data.token);
-        window.localStorage.removeItem("auth_mode");
-      })
-      .catch(() => {
-        pushToast("Could not start demo. Click Launch live demo to retry.", "error");
-      })
-      .finally(() => {
-        setAuthLoading(false);
-        setBooting(false);
-      });
-  }, [apiBase, pushToast]);
+    void startGuestSession().finally(() => setBooting(false));
+  }, [startGuestSession]);
 
   useEffect(() => {
     if (token) void fetchHistory(token);
   }, [token, fetchHistory]);
 
   const startSession = useCallback(
-    (newToken: string, welcome: string) => {
+    (newToken: string, welcome: string, mode: "guest" | "admin") => {
       setToken(newToken);
+      setAuthMode(mode);
       window.localStorage.setItem("token", newToken);
       pushToast(welcome, "success");
     },
     [pushToast],
   );
 
-  const handleDemo = useCallback(async () => {
-    setAuthLoading(true);
-    try {
-      const res = await axios.post(`${apiBase}/auth/demo`);
-      startSession(res.data.token, "Welcome — demo session ready");
-    } catch {
-      pushToast("Could not start the demo. Please retry.", "error");
-    } finally {
-      setAuthLoading(false);
-    }
-  }, [apiBase, pushToast, startSession]);
+  const handleGuestStart = useCallback(async () => {
+    const ok = await startGuestSession();
+    if (ok) pushToast("You're in — start orchestrating", "success");
+  }, [pushToast, startGuestSession]);
 
   const handleLogin = useCallback(async () => {
     if (!email || !password) {
@@ -185,25 +200,30 @@ export default function Dashboard() {
     }
     setAuthLoading(true);
     try {
-      const res = await axios.post(`${apiBase}/auth/login`, { email, password });
-      startSession(res.data.token, "Signed in");
+      const res = await axios.post(api.authLogin, { email, password }, { timeout: AXIOS_TIMEOUT_MS });
+      startSession(res.data.token, "Signed in as admin", "admin");
       window.localStorage.setItem("auth_mode", "admin");
     } catch {
       pushToast("Invalid credentials", "error");
     } finally {
       setAuthLoading(false);
     }
-  }, [apiBase, email, password, pushToast, startSession]);
+  }, [api.authLogin, email, password, pushToast, startSession]);
 
-  const handleLogout = useCallback(() => {
-    window.localStorage.removeItem("token");
+  const handleLogout = useCallback(async () => {
     window.localStorage.removeItem("auth_mode");
-    setToken("");
     setResult([]);
     setHistory([]);
     setSource(null);
     setTask("");
-  }, []);
+    setActivePlanId(null);
+    setAuthMode("guest");
+    const ok = await startGuestSession();
+    if (!ok) {
+      window.localStorage.removeItem("token");
+      setToken("");
+    }
+  }, [startGuestSession]);
 
   const handleOrchestrate = useCallback(
     async (goalInput?: string) => {
@@ -217,11 +237,12 @@ export default function Dashboard() {
       setResult([]);
       setSource(null);
       setExpandedSteps([]);
+      setActivePlanId(null);
       try {
         const res = await axios.post(
-          `${apiBase}/api/orchestrate`,
+          api.orchestrate,
           { title: goal },
-          { headers: { Authorization: `Bearer ${token}` } },
+          { headers: { Authorization: `Bearer ${token}` }, timeout: AXIOS_TIMEOUT_MS },
         );
         const raw = res.data?.steps ?? res.data?.subtasks ?? [];
         const steps = normalizePlan(Array.isArray(raw) ? raw : [raw]);
@@ -238,8 +259,48 @@ export default function Dashboard() {
         setLoading(false);
       }
     },
-    [apiBase, task, token, normalizePlan, fetchHistory, pushToast],
+    [api.orchestrate, task, token, normalizePlan, fetchHistory, pushToast],
   );
+
+  const deletePlan = useCallback(
+    async (id: string) => {
+      try {
+        await axios.delete(api.task(id), {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: AXIOS_TIMEOUT_MS,
+        });
+        setHistory((prev) => prev.filter((h) => h.id !== id));
+        if (activePlanId === id) {
+          setResult([]);
+          setTask("");
+          setSource(null);
+          setActivePlanId(null);
+        }
+        pushToast("Plan removed", "success");
+      } catch {
+        pushToast("Could not delete plan", "error");
+      }
+    },
+    [api, token, activePlanId, pushToast],
+  );
+
+  const clearHistory = useCallback(async () => {
+    if (!history.length) return;
+    try {
+      await axios.delete(api.tasks, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: AXIOS_TIMEOUT_MS,
+      });
+      setHistory([]);
+      setResult([]);
+      setTask("");
+      setSource(null);
+      setActivePlanId(null);
+      pushToast("History cleared", "success");
+    } catch {
+      pushToast("Could not clear history", "error");
+    }
+  }, [api.tasks, history.length, token, pushToast]);
 
   const loadHistory = useCallback(
     (h: HistoryItem) => {
@@ -248,7 +309,8 @@ export default function Dashboard() {
         const steps = normalizePlan(Array.isArray(data) ? data : [data]);
         setResult(steps);
         setTask(h.title);
-        setSource(null);
+        setActivePlanId(h.id);
+        setSource("demo");
         setCompletedSteps([]);
         setExpandedSteps(steps.length ? [steps[0].step] : []);
         setSidebarOpen(false);
@@ -332,7 +394,7 @@ export default function Dashboard() {
             <div className="landing-card boot-card glass-panel">
               <BrandLogo size="lg" />
               <Loader2 size={32} className="spin boot-spinner" />
-              <p className="hero-hint">Starting your demo session…</p>
+              <p className="hero-hint">Preparing your workspace…</p>
             </div>
           </motion.div>
         ) : !token ? (
@@ -352,13 +414,13 @@ export default function Dashboard() {
               <BrandLogo size="lg" />
               <h1 className="hero-title font-display">Turn any goal into a plan you can act on.</h1>
               <p className="hero-sub">
-                Describe an objective and an LLM breaks it into 5 concrete, actionable steps —
-                tracked, exportable, and saved to your history.
+                Describe any objective and get a structured 5-step action plan — prioritized,
+                trackable, exportable, and saved to your history.
               </p>
 
               <ul className="hero-features">
                 <li>
-                  <Sparkles size={15} /> Llama 3.3 via Groq
+                  <Sparkles size={15} /> AI-powered decomposition
                 </li>
                 <li>
                   <CheckCircle2 size={15} /> Track &amp; complete steps
@@ -371,13 +433,13 @@ export default function Dashboard() {
               <button
                 type="button"
                 className="btn btn--primary btn--block"
-                onClick={handleDemo}
+                onClick={handleGuestStart}
                 disabled={authLoading}
               >
-                {authLoading ? <Loader2 size={18} className="spin" /> : <Play size={18} />}
-                Launch live demo
+                {authLoading ? <Loader2 size={18} className="spin" /> : <Rocket size={18} />}
+                Get started
               </button>
-              <p className="hero-hint">No sign-up. Instant access.</p>
+              <p className="hero-hint">Free guest access — no sign-up required.</p>
 
               <button
                 type="button"
@@ -385,7 +447,7 @@ export default function Dashboard() {
                 aria-expanded={showSignIn}
                 onClick={() => setShowSignIn((s) => !s)}
               >
-                {showSignIn ? "Hide admin sign-in" : "Sign in as admin"}
+                {showSignIn ? "Hide sign in" : "Sign in with admin account"}
               </button>
 
               <AnimatePresence>
@@ -427,9 +489,6 @@ export default function Dashboard() {
                   </motion.form>
                 )}
               </AnimatePresence>
-              <p className="api-tag">
-                API endpoint <code>{apiBase}</code>
-              </p>
             </motion.div>
           </motion.div>
         ) : (
@@ -454,32 +513,55 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              <p className="side-label">Recent plans</p>
+              <div className="sidebar-section-head">
+                <p className="side-label">Your plans</p>
+                {history.length > 0 && (
+                  <button type="button" className="clear-btn" onClick={() => void clearHistory()}>
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <p className="session-tag">{authMode === "admin" ? "Admin session" : "Guest session"}</p>
               <div className="history-list">
                 {history.length === 0 ? (
-                  <p className="side-empty">No plans yet. Generate your first one.</p>
+                  <p className="side-empty">No plans yet. Generate your first one above.</p>
                 ) : (
                   history.map((h) => {
                     const steps = countHistorySteps(h);
+                    const active = activePlanId === h.id;
                     return (
-                    <button
-                      key={h.id}
-                      type="button"
-                      className="history-pill"
-                      onClick={() => loadHistory(h)}
-                      title={h.title}
-                    >
-                      <ChevronRight size={13} />
-                      <span className="history-pill__title">{h.title}</span>
-                      {steps > 0 && <span className="history-pill__count">{steps}</span>}
-                    </button>
+                      <div key={h.id} className={`history-row ${active ? "history-row--active" : ""}`}>
+                        <button
+                          type="button"
+                          className="history-pill"
+                          onClick={() => loadHistory(h)}
+                          title={h.title}
+                        >
+                          <ChevronRight size={13} />
+                          <span className="history-pill__meta">
+                            <span className="history-pill__title">{h.title}</span>
+                            {h.created_at && (
+                              <span className="history-pill__date">{formatPlanDate(h.created_at)}</span>
+                            )}
+                          </span>
+                          {steps > 0 && <span className="history-pill__count">{steps}</span>}
+                        </button>
+                        <button
+                          type="button"
+                          className="history-delete"
+                          aria-label={`Delete ${h.title}`}
+                          onClick={() => void deletePlan(h.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     );
                   })
                 )}
               </div>
 
-              <button type="button" className="signout" onClick={handleLogout}>
-                <LogOut size={15} /> Sign out
+              <button type="button" className="signout" onClick={() => void handleLogout()}>
+                <LogOut size={15} /> {authMode === "admin" ? "Switch to guest" : "Refresh session"}
               </button>
             </aside>
 
@@ -570,7 +652,7 @@ export default function Dashboard() {
                       <span>
                         {completedSteps.length}/{result.length} done
                       </span>
-                      {source === "demo" && <span className="badge badge--demo">Demo mode</span>}
+                      {source === "demo" && <span className="badge badge--smart">Smart planning</span>}
                       {source === "ai" && <span className="badge badge--ai">AI generated</span>}
                     </div>
                   </motion.div>
@@ -765,14 +847,24 @@ function Styles() {
       .sidebar { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 26px 18px; display: flex; flex-direction: column; border-radius: 0; }
       .sidebar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
       .sidebar-close { display: none; }
-      .side-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-faint); font-weight: 600; margin: 0 0 14px 4px; }
+      .side-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-faint); font-weight: 600; margin: 0; }
+      .sidebar-section-head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px; gap: 8px; }
+      .clear-btn { background: none; border: none; color: var(--text-faint); font-size: 11px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 8px; transition: color .2s, background .2s; }
+      .clear-btn:hover { color: var(--red); background: rgba(251,113,133,0.08); }
+      .session-tag { font-size: 11px; color: var(--text-faint); margin: 0 4px 12px; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); width: fit-content; }
       .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin: 0 -4px; padding: 0 4px; }
       .side-empty { color: var(--text-faint); font-size: 13px; line-height: 1.5; padding: 4px; }
-      .history-pill { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 12px; background: transparent; border: 1px solid transparent; color: var(--text-dim); font-size: 13px; cursor: pointer; transition: background .2s, color .2s, border-color .2s, transform .15s; }
-      .history-pill__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+      .history-row { display: flex; align-items: stretch; gap: 4px; }
+      .history-row--active .history-pill { background: var(--surface-2); border-color: rgba(139,92,246,0.35); color: var(--text); }
+      .history-pill { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; text-align: left; padding: 11px 12px; border-radius: 12px; background: transparent; border: 1px solid transparent; color: var(--text-dim); font-size: 13px; cursor: pointer; transition: background .2s, color .2s, border-color .2s, transform .15s; }
+      .history-pill__meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+      .history-pill__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .history-pill__date { font-size: 10px; color: var(--text-faint); }
       .history-pill__count { flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 999px; background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25); font-family: var(--font); }
       .history-pill svg { flex-shrink: 0; color: var(--violet); }
       .history-pill:hover { background: var(--surface-2); color: var(--text); border-color: var(--border); transform: translateX(3px); }
+      .history-delete { display: inline-flex; align-items: center; justify-content: center; width: 36px; border-radius: 10px; background: transparent; border: 1px solid transparent; color: var(--text-faint); cursor: pointer; transition: color .2s, background .2s, border-color .2s; flex-shrink: 0; }
+      .history-delete:hover { color: var(--red); background: rgba(251,113,133,0.1); border-color: rgba(251,113,133,0.25); }
       .signout { display: flex; align-items: center; gap: 9px; margin-top: 18px; padding: 12px; border-radius: 12px; background: transparent; border: 1px solid var(--border); color: var(--red); font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; }
       .signout:hover { background: rgba(251,113,133,0.1); }
 
@@ -808,7 +900,7 @@ function Styles() {
       .result-meta { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12.5px; color: var(--text-dim); }
       .badge { font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; padding: 4px 9px; border-radius: 999px; text-transform: uppercase; }
       .badge--ai { background: rgba(52,211,153,0.14); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
-      .badge--demo { background: rgba(124,77,255,0.12); color: #a78bfa; border: 1px solid rgba(124,77,255,0.25); }
+      .badge--smart { background: rgba(34,211,238,0.12); color: var(--cyan); border: 1px solid rgba(34,211,238,0.28); }
 
       .steps { display: flex; flex-direction: column; gap: 11px; }
       .plan-card { position: relative; border-radius: 18px; overflow: hidden; transition: border-color .2s, transform .2s, box-shadow .25s; }

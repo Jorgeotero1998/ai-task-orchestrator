@@ -19,7 +19,7 @@ def _sample_steps(title: str) -> list[dict]:
 
 def test_tasks_empty_initially(client):
     token = _login(client)
-    resp = client.get("/api/tasks", headers={"Authorization": f"Bearer {token}"})
+    resp = client.get("/tasks", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert resp.json() == []
 
@@ -29,7 +29,7 @@ def test_demo_login_issues_token(client):
     assert resp.status_code == 200
     token = resp.json()["token"]
     assert token
-    tasks = client.get("/api/tasks", headers={"Authorization": f"Bearer {token}"})
+    tasks = client.get("/tasks", headers={"Authorization": f"Bearer {token}"})
     assert tasks.status_code == 200
     titles = [t["title"] for t in tasks.json()]
     assert len(titles) == 3
@@ -48,12 +48,12 @@ def test_tasks_scoped_to_owner(client, monkeypatch):
     monkeypatch.setattr(tasks_router, "orchestrate_steps", _fake_orchestrate_steps)
 
     client.post(
-        "/api/orchestrate",
+        "/orchestrate",
         json={"title": "Admin-only goal"},
         headers={"Authorization": f"Bearer {token}"},
     )
     demo = client.post("/auth/demo").json()["token"]
-    demo_tasks = client.get("/api/tasks", headers={"Authorization": f"Bearer {demo}"}).json()
+    demo_tasks = client.get("/tasks", headers={"Authorization": f"Bearer {demo}"}).json()
     assert all(t["title"] != "Admin-only goal" for t in demo_tasks)
 
 
@@ -64,7 +64,7 @@ def test_orchestrate_fallback_without_key(client, monkeypatch):
     monkeypatch.setattr(orchestrator.settings, "groq_api_key", None, raising=False)
 
     resp = client.post(
-        "/api/orchestrate",
+        "/orchestrate",
         json={"title": "Launch a podcast"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -88,13 +88,62 @@ def test_orchestrate_creates_task(client, monkeypatch):
     monkeypatch.setattr(tasks_router, "orchestrate_steps", _fake_orchestrate_steps)
 
     resp = client.post(
-        "/api/orchestrate",
+        "/orchestrate",
         json={"title": "Build a portfolio-ready deploy"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
     assert len(resp.json()["steps"]) == 5
 
-    resp2 = client.get("/api/tasks", headers={"Authorization": f"Bearer {token}"})
+    resp2 = client.get("/tasks", headers={"Authorization": f"Bearer {token}"})
     assert resp2.status_code == 200
     assert len(resp2.json()) == 1
+
+
+def test_delete_task(client, monkeypatch):
+    token = _login(client)
+
+    def _fake_orchestrate_steps(*, title: str):
+        steps = _sample_steps(title)
+        return steps, "raw", "ai"
+
+    import app.routers.tasks as tasks_router
+
+    monkeypatch.setattr(tasks_router, "orchestrate_steps", _fake_orchestrate_steps)
+
+    client.post(
+        "/orchestrate",
+        json={"title": "Temporary plan"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    tasks = client.get("/tasks", headers={"Authorization": f"Bearer {token}"}).json()
+    task_id = tasks[0]["id"]
+
+    resp = client.delete(f"/tasks/{task_id}", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 204
+
+    remaining = client.get("/tasks", headers={"Authorization": f"Bearer {token}"}).json()
+    assert remaining == []
+
+
+def test_clear_tasks(client, monkeypatch):
+    token = _login(client)
+
+    def _fake_orchestrate_steps(*, title: str):
+        steps = _sample_steps(title)
+        return steps, "raw", "ai"
+
+    import app.routers.tasks as tasks_router
+
+    monkeypatch.setattr(tasks_router, "orchestrate_steps", _fake_orchestrate_steps)
+
+    for title in ("Plan A", "Plan B"):
+        client.post(
+            "/orchestrate",
+            json={"title": title},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    resp = client.delete("/tasks", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 204
+    assert client.get("/tasks", headers={"Authorization": f"Bearer {token}"}).json() == []
