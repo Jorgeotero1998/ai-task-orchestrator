@@ -36,10 +36,7 @@ body {
 }
 
 body {
-  background-image:
-    radial-gradient(at 0% 0%, rgba(124, 77, 255, 0.16) 0px, transparent 45%),
-    radial-gradient(at 100% 100%, rgba(34, 211, 238, 0.14) 0px, transparent 45%);
-  background-attachment: fixed;
+  overflow-x: hidden;
 }
 
 ::-webkit-scrollbar {
@@ -65,6 +62,86 @@ body {
 
 button {
   font-family: inherit;
+}
+
+/* Ambient mesh + particles */
+.mesh-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 0%, rgba(124, 77, 255, 0.08), transparent 55%);
+}
+
+.mesh-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.45;
+  animation: meshDrift 22s ease-in-out infinite alternate;
+}
+
+.mesh-orb--violet {
+  width: 55vmax;
+  height: 55vmax;
+  top: -25%;
+  left: -15%;
+  background: radial-gradient(circle, rgba(124, 77, 255, 0.55), transparent 68%);
+}
+
+.mesh-orb--cyan {
+  width: 48vmax;
+  height: 48vmax;
+  bottom: -22%;
+  right: -12%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.45), transparent 68%);
+  animation-delay: -11s;
+}
+
+.mesh-orb--pink {
+  width: 32vmax;
+  height: 32vmax;
+  top: 35%;
+  right: 20%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.25), transparent 70%);
+  animation-delay: -6s;
+}
+
+.mesh-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+}
+
+.particle-field {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+@keyframes meshDrift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(4%, 3%) scale(1.06);
+  }
+}
+
+.glass-panel {
+  background: rgba(12, 12, 18, 0.55);
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {

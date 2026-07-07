@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,6 +21,10 @@ import {
   Zap,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
+import MeshBackground from "./ambient/MeshBackground";
+import OrchestrationLoader from "./OrchestrationLoader";
+
+const ParticleField = dynamic(() => import("./ambient/ParticleField"), { ssr: false });
 
 type PlanStep = {
   step: number;
@@ -71,6 +76,7 @@ export default function Dashboard() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [booting, setBooting] = useState<boolean>(true);
+  const [planKey, setPlanKey] = useState<number>(0);
   const toastId = useRef(0);
 
   const pushToast = useCallback((message: string, type: Toast["type"] = "info") => {
@@ -223,6 +229,7 @@ export default function Dashboard() {
         setSource(res.data?.source === "fallback" ? "fallback" : "ai");
         setCompletedSteps([]);
         setExpandedSteps(steps.length ? [steps[0].step] : []);
+        setPlanKey((k) => k + 1);
         void fetchHistory(token);
         if (res.data?.source === "fallback") {
           pushToast("Plan ready — add GROQ_API_KEY in Vercel for live Llama 3.3", "info");
@@ -308,13 +315,16 @@ export default function Dashboard() {
 
   return (
     <div className="app">
+      <MeshBackground />
+      <ParticleField />
+      <div className="app-shell">
       <Styles />
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
 
       <AnimatePresence mode="wait">
         {booting ? (
           <motion.div key="boot" className="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="landing-card boot-card">
+            <div className="landing-card boot-card glass-panel">
               <div className="brand brand--lg">
                 <span className="brand-mark">
                   <Zap size={20} />
@@ -334,7 +344,7 @@ export default function Dashboard() {
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="landing-card"
+              className="landing-card glass-panel"
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
@@ -436,7 +446,7 @@ export default function Dashboard() {
             exit={{ opacity: 0 }}
           >
             {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} aria-hidden />}
-            <aside className={`sidebar ${sidebarOpen ? "sidebar--open" : ""}`} aria-label="History">
+            <aside className={`sidebar glass-panel ${sidebarOpen ? "sidebar--open" : ""}`} aria-label="History">
               <div className="sidebar-head">
                 <div className="brand">
                   <span className="brand-mark">
@@ -480,7 +490,7 @@ export default function Dashboard() {
             </aside>
 
             <main className="main">
-              <header className="topbar">
+              <header className="topbar glass-panel">
                 <button
                   type="button"
                   className="icon-btn menu-btn"
@@ -500,11 +510,11 @@ export default function Dashboard() {
               </header>
 
               <div className="canvas">
-                <div className="composer">
+                <div className="composer glass-panel">
                   <label htmlFor="goal" className="composer-label">
                     Tell me your goal
                   </label>
-                  <div className="composer-row">
+                  <div className={`composer-row ${loading ? "composer-row--active" : ""}`}>
                     <input
                       id="goal"
                       className="composer-input"
@@ -551,28 +561,30 @@ export default function Dashboard() {
                 )}
 
                 <div className="steps">
-                  {loading && (
-                    <div className="skeletons">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <div key={i} className="skeleton" style={{ animationDelay: `${i * 0.08}s` }} />
-                      ))}
-                    </div>
-                  )}
+                  <AnimatePresence mode="wait">
+                    {loading && task && <OrchestrationLoader key="loader" goal={task} />}
+                  </AnimatePresence>
 
-                  <AnimatePresence>
+                  <AnimatePresence mode="popLayout">
                     {!loading &&
-                      result.map((step) => {
+                      result.map((step, mapIndex) => {
                         const idx = step.step - 1;
                         const done = completedSteps.includes(idx);
                         const expanded = expandedSteps.includes(step.step);
                         return (
                           <motion.div
-                            key={`${step.step}-${step.title.slice(0, 12)}`}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ delay: idx * 0.05 }}
-                            className={`plan-card ${done ? "plan-card--done" : ""}`}
+                            key={`${planKey}-${step.step}-${step.title.slice(0, 12)}`}
+                            layout
+                            initial={{ opacity: 0, y: 28, scale: 0.94, filter: "blur(6px)" }}
+                            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                            exit={{ opacity: 0, y: -12, scale: 0.98 }}
+                            transition={{
+                              delay: mapIndex * 0.11,
+                              type: "spring",
+                              stiffness: 280,
+                              damping: 26,
+                            }}
+                            className={`plan-card glass-panel ${done ? "plan-card--done" : ""}`}
                           >
                             <div className="plan-card__head">
                               <button
@@ -626,6 +638,7 @@ export default function Dashboard() {
                                   initial={{ opacity: 0, height: 0 }}
                                   animate={{ opacity: 1, height: "auto" }}
                                   exit={{ opacity: 0, height: 0 }}
+                                  transition={{ duration: 0.25 }}
                                 >
                                   {step.description}
                                 </motion.p>
@@ -637,7 +650,11 @@ export default function Dashboard() {
                   </AnimatePresence>
 
                   {!loading && result.length === 0 && (
-                    <div className="empty">
+                    <motion.div
+                      className="empty glass-panel"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                    >
                       <div className="empty-orb">
                         <Sparkles size={30} />
                       </div>
@@ -645,7 +662,7 @@ export default function Dashboard() {
                       <p className="empty-sub">
                         Type a goal above or pick an example to see it broken into steps.
                       </p>
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               </div>
@@ -653,6 +670,7 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -683,7 +701,8 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: nu
 function Styles() {
   return (
     <style>{`
-      .app { min-height: 100vh; width: 100%; }
+      .app { position: relative; min-height: 100vh; width: 100%; }
+      .app-shell { position: relative; z-index: 1; min-height: 100vh; }
 
       .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.01em; font-size: 17px; }
       .brand--lg { font-size: 20px; margin-bottom: 26px; }
@@ -691,10 +710,10 @@ function Styles() {
       .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
       /* Landing */
-      .landing { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+      .landing { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; position: relative; z-index: 1; }
       .boot-card { text-align: center; max-width: 360px; }
       .boot-spinner { margin: 24px auto 12px; color: var(--cyan); }
-      .landing-card { width: 100%; max-width: 460px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 40px; box-shadow: var(--shadow); backdrop-filter: blur(40px); }
+      .landing-card { width: 100%; max-width: 460px; border-radius: var(--radius-lg); padding: 40px; }
       .hero-title { font-size: 30px; line-height: 1.15; font-weight: 800; margin: 4px 0 14px; letter-spacing: -0.02em; }
       .hero-sub { color: var(--text-dim); font-size: 15px; line-height: 1.6; margin: 0 0 22px; }
       .hero-features { list-style: none; padding: 0; margin: 0 0 26px; display: flex; flex-wrap: wrap; gap: 10px; }
@@ -726,7 +745,7 @@ function Styles() {
 
       /* Workspace */
       .workspace { display: flex; min-height: 100vh; }
-      .sidebar { width: 280px; flex-shrink: 0; background: rgba(10,10,14,0.7); backdrop-filter: blur(30px); border-right: 1px solid var(--border); padding: 26px 18px; display: flex; flex-direction: column; }
+      .sidebar { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 26px 18px; display: flex; flex-direction: column; border-radius: 0; }
       .sidebar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
       .sidebar-close { display: none; }
       .side-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-faint); font-weight: 600; margin: 0 0 14px 4px; }
@@ -740,14 +759,15 @@ function Styles() {
       .signout:hover { background: rgba(251,113,133,0.1); }
 
       .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-      .topbar { display: flex; align-items: center; gap: 14px; padding: 18px 26px; border-bottom: 1px solid var(--border); }
+      .topbar { display: flex; align-items: center; gap: 14px; padding: 18px 26px; border-bottom: 1px solid var(--border); border-radius: 0; margin-bottom: 0; }
       .topbar-title { font-weight: 800; font-size: 17px; flex: 1; }
       .menu-btn { display: none; }
 
       .canvas { flex: 1; overflow-y: auto; padding: 30px 26px 60px; max-width: 780px; width: 100%; margin: 0 auto; }
-      .composer { margin-bottom: 26px; }
-      .composer-label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 10px; font-weight: 500; }
-      .composer-row { display: flex; gap: 10px; }
+      .composer { margin-bottom: 26px; padding: 22px; border-radius: var(--radius); }
+      .composer-label { display: block; font-size: 14px; color: var(--text); margin-bottom: 12px; font-weight: 600; letter-spacing: -0.01em; }
+      .composer-row { display: flex; gap: 10px; transition: box-shadow .25s; border-radius: 14px; }
+      .composer-row--active { box-shadow: 0 0 0 2px rgba(124,77,255,0.35), 0 0 30px rgba(34,211,238,0.15); }
       .composer-input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 15px 16px; color: var(--text); font-size: 15px; outline: none; transition: border-color .2s, background .2s; }
       .composer-input:focus { border-color: var(--violet); background: var(--surface-3); }
       .composer-input::placeholder { color: var(--text-faint); }
@@ -766,8 +786,8 @@ function Styles() {
       .badge--warn { background: rgba(251,191,36,0.14); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
 
       .steps { display: flex; flex-direction: column; gap: 11px; }
-      .plan-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; transition: border-color .2s, transform .2s; }
-      .plan-card:hover { border-color: var(--border-strong); }
+      .plan-card { border-radius: 18px; overflow: hidden; transition: border-color .2s, transform .2s, box-shadow .25s; }
+      .plan-card:hover { border-color: var(--border-strong); transform: translateY(-2px); box-shadow: 0 16px 40px rgba(0,0,0,0.35); }
       .plan-card--done { opacity: 0.58; border-color: rgba(52,211,153,0.3); }
       .plan-card--done .plan-card__title { text-decoration: line-through; }
       .plan-card__head { display: flex; align-items: stretch; gap: 8px; padding: 8px 10px 8px 8px; }
@@ -788,12 +808,26 @@ function Styles() {
       .step-icon { flex-shrink: 0; color: var(--violet); }
       .step-icon--done { color: var(--green); }
 
+      .empty { text-align: center; padding: 60px 20px; border-radius: var(--radius); }
+
+      .orch-loader { padding: 28px 24px; border-radius: var(--radius); text-align: center; margin-bottom: 8px; }
+      .orch-loader__icon { width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: rgba(124,77,255,0.15); border: 1px solid rgba(124,77,255,0.25); }
+      .orch-spark { color: var(--cyan); animation: rotate 2.5s linear infinite; }
+      .orch-loader__label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-faint); margin: 0 0 8px; font-weight: 700; }
+      .orch-loader__goal { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--text); }
+      .orch-loader__status { font-size: 13px; color: var(--cyan); min-height: 20px; margin: 0 0 18px; font-family: ui-monospace, monospace; }
+      .orch-cursor { animation: blink 1s step-end infinite; margin-left: 2px; }
+      .orch-loader__bars { display: flex; justify-content: center; gap: 5px; height: 28px; align-items: flex-end; }
+      .orch-bar { display: block; width: 5px; height: 100%; border-radius: 999px; background: var(--grad); transform-origin: bottom; }
+      @keyframes blink { 50% { opacity: 0; } }
+
       .skeletons { display: flex; flex-direction: column; gap: 11px; }
       .skeleton { height: 58px; border-radius: 16px; background: linear-gradient(100deg, var(--surface) 30%, var(--surface-3) 50%, var(--surface) 70%); background-size: 200% 100%; animation: shimmer 1.3s infinite; }
       @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
       .empty { text-align: center; padding: 60px 20px; }
-      .empty-orb { width: 74px; height: 74px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); color: var(--violet); margin-bottom: 18px; }
+      .empty-orb { width: 74px; height: 74px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); color: var(--violet); margin-bottom: 18px; animation: pulseOrb 3s ease-in-out infinite; }
+      @keyframes pulseOrb { 0%,100% { box-shadow: 0 0 0 0 rgba(124,77,255,0.2); } 50% { box-shadow: 0 0 30px 8px rgba(124,77,255,0.15); } }
       .empty-title { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
       .empty-sub { color: var(--text-dim); font-size: 13.5px; line-height: 1.5; max-width: 340px; margin: 0 auto; }
 
