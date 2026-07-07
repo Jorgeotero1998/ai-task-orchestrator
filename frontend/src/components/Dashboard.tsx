@@ -5,8 +5,10 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Circle,
+  Clock,
   FileDown,
   Loader2,
   LogOut,
@@ -18,6 +20,14 @@ import {
   Zap,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
+
+type PlanStep = {
+  step: number;
+  title: string;
+  description: string;
+  priority: "high" | "medium" | "low" | string;
+  timeline: string;
+};
 
 type HistoryItem = {
   id: string;
@@ -48,10 +58,11 @@ export default function Dashboard() {
 
   const [token, setToken] = useState<string>("");
   const [task, setTask] = useState<string>("");
-  const [result, setResult] = useState<string[]>([]);
+  const [result, setResult] = useState<PlanStep[]>([]);
   const [source, setSource] = useState<"ai" | "fallback" | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [authLoading, setAuthLoading] = useState<boolean>(false);
   const [showSignIn, setShowSignIn] = useState<boolean>(false);
@@ -70,15 +81,28 @@ export default function Dashboard() {
     }, 4200);
   }, []);
 
-  const parseStep = useCallback((item: unknown): string => {
-    if (typeof item === "string") return item;
-    if (typeof item === "object" && item !== null) {
-      const anyItem = item as Record<string, unknown>;
-      const v = anyItem.descripcion ?? anyItem.paso ?? anyItem.step ?? anyItem.title;
-      if (typeof v === "string") return v;
-      return JSON.stringify(item);
-    }
-    return "Processing...";
+  const normalizePlan = useCallback((raw: unknown[]): PlanStep[] => {
+    return raw.map((item, index) => {
+      if (typeof item === "string") {
+        return {
+          step: index + 1,
+          title: item.split(".")[0] || item,
+          description: item,
+          priority: index < 2 ? "high" : index < 4 ? "medium" : "low",
+          timeline: ["Days 1-3", "Days 4-7", "Week 2", "Week 3", "Week 4"][index] || "Week 4",
+        };
+      }
+      const obj = item as Record<string, unknown>;
+      const description = String(obj.description ?? obj.step ?? obj.title ?? "");
+      const title = String(obj.title ?? description.split(".")[0] ?? `Step ${index + 1}`);
+      return {
+        step: Number(obj.step ?? index + 1),
+        title,
+        description,
+        priority: String(obj.priority ?? "medium"),
+        timeline: String(obj.timeline ?? obj.timeframe ?? ""),
+      };
+    });
   }, []);
 
   const fetchHistory = useCallback(
@@ -186,17 +210,19 @@ export default function Dashboard() {
       setLoading(true);
       setResult([]);
       setSource(null);
+      setExpandedSteps([]);
       try {
         const res = await axios.post(
           `${apiBase}/api/orchestrate`,
           { title: goal },
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        const raw = res.data?.subtasks ?? res.data?.steps ?? [];
-        const steps = (Array.isArray(raw) ? raw : [raw]).map(parseStep);
+        const raw = res.data?.steps ?? res.data?.subtasks ?? [];
+        const steps = normalizePlan(Array.isArray(raw) ? raw : [raw]);
         setResult(steps);
         setSource(res.data?.source === "fallback" ? "fallback" : "ai");
         setCompletedSteps([]);
+        setExpandedSteps(steps.length ? [steps[0].step] : []);
         void fetchHistory(token);
         if (res.data?.source === "fallback") {
           pushToast("Plan ready — add GROQ_API_KEY in Vercel for live Llama 3.3", "info");
@@ -209,24 +235,25 @@ export default function Dashboard() {
         setLoading(false);
       }
     },
-    [apiBase, task, token, parseStep, fetchHistory, pushToast],
+    [apiBase, task, token, normalizePlan, fetchHistory, pushToast],
   );
 
   const loadHistory = useCallback(
     (h: HistoryItem) => {
       try {
         const data = typeof h.subtasks === "string" ? JSON.parse(h.subtasks) : h.subtasks;
-        const steps = (Array.isArray(data) ? data : [data]).map(parseStep);
+        const steps = normalizePlan(Array.isArray(data) ? data : [data]);
         setResult(steps);
         setTask(h.title);
         setSource(null);
         setCompletedSteps([]);
+        setExpandedSteps(steps.length ? [steps[0].step] : []);
         setSidebarOpen(false);
       } catch {
         setResult([]);
       }
     },
-    [parseStep],
+    [normalizePlan],
   );
 
   const exportPDF = useCallback(() => {
@@ -246,18 +273,23 @@ export default function Dashboard() {
     doc.line(20, 54, 190, 54);
     doc.setFontSize(14);
     doc.setTextColor(30, 30, 30);
-    doc.text("Action Steps", 20, 66);
+    doc.text("Action Plan", 20, 66);
     let y = 76;
-    result.forEach((step, i) => {
-      const lines = doc.splitTextToSize(`${i + 1}. ${step}`, 170) as string[];
-      if (y > 265) {
+    result.forEach((step) => {
+      const header = `${step.step}. ${step.title} [${step.priority}${step.timeline ? ` · ${step.timeline}` : ""}]`;
+      const body = doc.splitTextToSize(step.description, 170) as string[];
+      if (y > 250) {
         doc.addPage();
         y = 24;
       }
       doc.setFontSize(11);
-      doc.setTextColor(45, 45, 45);
-      doc.text(lines, 20, y);
-      y += lines.length * 7 + 4;
+      doc.setTextColor(30, 30, 30);
+      doc.text(doc.splitTextToSize(header, 170), 20, y);
+      y += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(70, 70, 70);
+      doc.text(body, 24, y);
+      y += body.length * 6 + 8;
     });
 
     const pages = doc.getNumberOfPages();
@@ -470,7 +502,7 @@ export default function Dashboard() {
               <div className="canvas">
                 <div className="composer">
                   <label htmlFor="goal" className="composer-label">
-                    What do you want to accomplish?
+                    Tell me your goal
                   </label>
                   <div className="composer-row">
                     <input
@@ -529,32 +561,77 @@ export default function Dashboard() {
 
                   <AnimatePresence>
                     {!loading &&
-                      result.map((step, i) => {
-                        const done = completedSteps.includes(i);
+                      result.map((step) => {
+                        const idx = step.step - 1;
+                        const done = completedSteps.includes(idx);
+                        const expanded = expandedSteps.includes(step.step);
                         return (
-                          <motion.button
-                            type="button"
-                            key={`${i}-${step.slice(0, 12)}`}
+                          <motion.div
+                            key={`${step.step}-${step.title.slice(0, 12)}`}
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                            className={`step ${done ? "step--done" : ""}`}
-                            aria-pressed={done}
-                            onClick={() =>
-                              setCompletedSteps((prev) =>
-                                prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i],
-                              )
-                            }
+                            transition={{ delay: idx * 0.05 }}
+                            className={`plan-card ${done ? "plan-card--done" : ""}`}
                           >
-                            <span className="step-num">{i + 1}</span>
-                            {done ? (
-                              <CheckCircle2 size={20} className="step-icon step-icon--done" />
-                            ) : (
-                              <Circle size={20} className="step-icon" />
-                            )}
-                            <span className="step-text">{step}</span>
-                          </motion.button>
+                            <div className="plan-card__head">
+                              <button
+                                type="button"
+                                className="plan-check"
+                                aria-pressed={done}
+                                aria-label={done ? "Mark incomplete" : "Mark complete"}
+                                onClick={() =>
+                                  setCompletedSteps((prev) =>
+                                    prev.includes(idx) ? prev.filter((x) => x !== idx) : [...prev, idx],
+                                  )
+                                }
+                              >
+                                {done ? (
+                                  <CheckCircle2 size={20} className="step-icon step-icon--done" />
+                                ) : (
+                                  <Circle size={20} className="step-icon" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                className="plan-card__toggle"
+                                aria-expanded={expanded}
+                                onClick={() =>
+                                  setExpandedSteps((prev) =>
+                                    prev.includes(step.step)
+                                      ? prev.filter((s) => s !== step.step)
+                                      : [...prev, step.step],
+                                  )
+                                }
+                              >
+                                <span className="step-num">{step.step}</span>
+                                <div className="plan-card__main">
+                                  <div className="plan-card__title-row">
+                                    <span className="plan-card__title">{step.title}</span>
+                                    <span className={`prio prio--${step.priority}`}>{step.priority}</span>
+                                  </div>
+                                  {step.timeline && (
+                                    <span className="plan-card__time">
+                                      <Clock size={12} /> {step.timeline}
+                                    </span>
+                                  )}
+                                </div>
+                                <ChevronDown size={18} className={`plan-chevron ${expanded ? "plan-chevron--open" : ""}`} />
+                              </button>
+                            </div>
+                            <AnimatePresence>
+                              {expanded && (
+                                <motion.p
+                                  className="plan-card__body"
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                >
+                                  {step.description}
+                                </motion.p>
+                              )}
+                            </AnimatePresence>
+                          </motion.div>
                         );
                       })}
                   </AnimatePresence>
@@ -689,14 +766,27 @@ function Styles() {
       .badge--warn { background: rgba(251,191,36,0.14); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
 
       .steps { display: flex; flex-direction: column; gap: 11px; }
-      .step { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 17px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; color: var(--text); cursor: pointer; transition: transform .2s, background .2s, border-color .2s; }
-      .step:hover { background: var(--surface-2); transform: translateX(4px); border-color: var(--border-strong); }
+      .plan-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; transition: border-color .2s, transform .2s; }
+      .plan-card:hover { border-color: var(--border-strong); }
+      .plan-card--done { opacity: 0.58; border-color: rgba(52,211,153,0.3); }
+      .plan-card--done .plan-card__title { text-decoration: line-through; }
+      .plan-card__head { display: flex; align-items: stretch; gap: 8px; padding: 8px 10px 8px 8px; }
+      .plan-check { display: inline-flex; align-items: center; justify-content: center; width: 42px; background: none; border: none; cursor: pointer; color: inherit; flex-shrink: 0; }
+      .plan-card__toggle { flex: 1; display: flex; align-items: center; gap: 12px; background: none; border: none; color: var(--text); cursor: pointer; text-align: left; padding: 8px 6px; }
+      .plan-card__main { flex: 1; min-width: 0; }
+      .plan-card__title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .plan-card__title { font-size: 15px; font-weight: 700; line-height: 1.35; }
+      .plan-card__time { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px; color: var(--text-dim); }
+      .plan-card__body { margin: 0; padding: 0 18px 16px 68px; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); }
+      .plan-chevron { flex-shrink: 0; color: var(--text-faint); transition: transform .2s; }
+      .plan-chevron--open { transform: rotate(180deg); color: var(--cyan); }
+      .prio { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 999px; border: 1px solid transparent; }
+      .prio--high { background: rgba(251,113,133,0.12); color: #fb7185; border-color: rgba(251,113,133,0.25); }
+      .prio--medium { background: rgba(251,191,36,0.12); color: #fbbf24; border-color: rgba(251,191,36,0.25); }
+      .prio--low { background: rgba(52,211,153,0.12); color: var(--green); border-color: rgba(52,211,153,0.25); }
       .step-num { flex-shrink: 0; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border-radius: 8px; background: var(--surface-3); color: var(--text-dim); }
       .step-icon { flex-shrink: 0; color: var(--violet); }
       .step-icon--done { color: var(--green); }
-      .step-text { font-size: 14.5px; line-height: 1.5; }
-      .step--done { opacity: 0.55; border-color: rgba(52,211,153,0.3); }
-      .step--done .step-text { text-decoration: line-through; }
 
       .skeletons { display: flex; flex-direction: column; gap: 11px; }
       .skeleton { height: 58px; border-radius: 16px; background: linear-gradient(100deg, var(--surface) 30%, var(--surface-3) 50%, var(--surface) 70%); background-size: 200% 100%; animation: shimmer 1.3s infinite; }

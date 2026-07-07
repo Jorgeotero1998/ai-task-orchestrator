@@ -40,18 +40,20 @@ Prefer the manual landing? Add `?admin=1` to the URL, or use **“Sign in as adm
 | Email | `admin@example.com` |
 | Password | `change-me` |
 
-## Enabling real AI (Groq)
+## Enabling real AI (Groq) — required for live Llama 3.3
 
-The app degrades gracefully: without a Groq key it returns a **deterministic template plan** (labelled “Template mode” in the UI) so the demo always works. To get live Llama 3.3 output:
+**Root cause when AI shows "Smart plan" instead of "AI generated":** `GROQ_API_KEY` is not set on the Vercel deployment. The app still works via a goal-aware fallback, but live LLM output requires this key.
 
-1. Get a free key at [console.groq.com](https://console.groq.com/keys).
-2. In the **Vercel dashboard → your project → Settings → Environment Variables**, add:
-   - `GROQ_API_KEY` = your Groq key (Production + Preview)
-   - `GROQ_MODEL` = `llama-3.3-70b-versatile` (optional, this is the default)
-3. **Redeploy** (Deployments → ⋯ → Redeploy) so the backend service picks up the new env var.
-4. Verify: log in, submit a goal — the badge should read **“AI generated”** instead of “Template mode”.
-
-> On Render, add the same `GROQ_API_KEY` under the API service’s Environment tab and redeploy.
+1. Create a free key at [console.groq.com/keys](https://console.groq.com/keys).
+2. Open [Vercel Dashboard](https://vercel.com) → your project → **Settings** → **Environment Variables**.
+3. Add:
+   | Name | Value | Environments |
+   |------|-------|--------------|
+   | `GROQ_API_KEY` | `gsk_…` (your key) | Production, Preview |
+   | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Production, Preview *(optional)* |
+4. Go to **Deployments** → latest deploy → **⋯** → **Redeploy** (required — env vars are not picked up until redeploy).
+5. Verify: `GET https://ai-task-orchestrator-inky.vercel.app/api/health` → `"ai": {"configured": true, …}`
+6. In the app, submit a goal — badge should read **AI generated** with structured steps (title, priority, timeline).
 
 ## Live demo
 - **Web**: https://ai-task-orchestrator-inky.vercel.app

@@ -41,4 +41,8 @@ def orchestrate(
     task = Task(title=payload.title, owner=sub, subtasks=steps, raw_response=raw)
     db.add(task)
     db.commit()
-    return OrchestrateResponse(subtasks=steps, source=source)
+    return OrchestrateResponse(
+        steps=steps,
+        subtasks=[s["title"] for s in steps],
+        source=source,
+    )

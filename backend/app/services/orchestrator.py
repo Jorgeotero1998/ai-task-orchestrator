@@ -1,28 +1,88 @@
 from __future__ import annotations
 
+import json
 import logging
+import re
+from typing import Any
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = (
-    "You are an expert task orchestrator. "
-    "Break the user's goal into exactly 5 short, concrete, actionable steps. "
-    "Each step must start with a verb and be self-contained. "
-    "No introductions, no numbering, one step per line."
-)
+SYSTEM_PROMPT = """You are an expert task orchestrator. Decompose the user's goal into exactly 5 actionable steps.
+
+Return ONLY valid JSON (no markdown) with this exact shape:
+{"steps": [
+  {
+    "step": 1,
+    "title": "Short imperative action (max 8 words)",
+    "description": "Concrete, specific details the user can execute today.",
+    "priority": "high",
+    "timeline": "Days 1-3"
+  }
+]}
+
+Rules:
+- exactly 5 steps in the array
+- priority must be one of: high, medium, low
+- timeline should be a realistic window (e.g. "Days 1-3", "Week 1", "Week 2-3")
+- titles start with a verb; descriptions are 1-2 sentences
+- tailor every step to the user's specific goal
+"""
+
+_TIMELINES = ("Days 1-3", "Days 4-7", "Week 2", "Week 3", "Week 4")
+_PRIORITIES = ("high", "high", "medium", "medium", "low")
 
 
-def _clean_steps(content: str) -> list[str]:
-    steps = [line.strip(" *-•\t1234567890.").strip() for line in content.splitlines() if line.strip()]
-    steps = [s for s in steps if len(s) >= 3]
+def _normalize_step(raw: dict[str, Any], index: int) -> dict[str, Any]:
+    priority = str(raw.get("priority", "medium")).lower()
+    if priority not in {"high", "medium", "low"}:
+        priority = _PRIORITIES[min(index, 4)]
+
+    title = str(raw.get("title") or raw.get("step_title") or "").strip()
+    description = str(raw.get("description") or raw.get("detail") or title).strip()
+    if not title and description:
+        title = description.split(".")[0][:80]
+    if not description:
+        description = title
+
+    return {
+        "step": int(raw.get("step") or index + 1),
+        "title": title,
+        "description": description,
+        "priority": priority,
+        "timeline": str(raw.get("timeline") or raw.get("timeframe") or _TIMELINES[min(index, 4)]),
+    }
+
+
+def _parse_json_steps(content: str) -> list[dict[str, Any]]:
+    text = content.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    data = json.loads(text)
+    if not isinstance(data, list):
+        raise ValueError("Expected JSON array")
+    steps = [_normalize_step(item if isinstance(item, dict) else {"title": str(item)}, i) for i, item in enumerate(data)]
     return steps[:5]
 
 
-def _fallback_steps(title: str) -> list[str]:
-    """Goal-aware deterministic decomposition when Groq is unavailable."""
+def _lines_to_steps(lines: list[str]) -> list[dict[str, Any]]:
+    cleaned = [line.strip(" *-•\t1234567890.").strip() for line in lines if line.strip()]
+    cleaned = [s for s in cleaned if len(s) >= 3][:5]
+    return [
+        {
+            "step": i + 1,
+            "title": text.split(".")[0][:80] or text[:80],
+            "description": text,
+            "priority": _PRIORITIES[min(i, 4)],
+            "timeline": _TIMELINES[min(i, 4)],
+        }
+        for i, text in enumerate(cleaned)
+    ]
 
+
+def _fallback_lines(title: str) -> list[str]:
     goal = title.strip().rstrip(".")
     lower = goal.lower()
 
@@ -71,13 +131,17 @@ def _fallback_steps(title: str) -> list[str]:
     ]
 
 
-def orchestrate_steps(*, title: str) -> tuple[list[str], str, str]:
+def _fallback_plan(title: str) -> list[dict[str, Any]]:
+    return _lines_to_steps(_fallback_lines(title))
+
+
+def orchestrate_steps(*, title: str) -> tuple[list[dict[str, Any]], str, str]:
     """Return ``(steps, raw_response, source)``."""
 
     if not settings.groq_api_key:
         logger.warning("GROQ_API_KEY not configured; using goal-aware fallback.")
-        steps = _fallback_steps(title)
-        return steps, "\n".join(steps), "fallback"
+        steps = _fallback_plan(title)
+        return steps, json.dumps(steps), "fallback"
 
     try:
         from groq import Groq
@@ -89,15 +153,23 @@ def orchestrate_steps(*, title: str) -> tuple[list[str], str, str]:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": title},
             ],
-            temperature=0.6,
-            max_tokens=512,
+            temperature=0.5,
+            max_tokens=1200,
+            response_format={"type": "json_object"},
         )
         content = completion.choices[0].message.content or ""
-        steps = _clean_steps(content)
-        if not steps:
-            raise ValueError("Empty completion from Groq")
-        return steps, content, "ai"
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict) and "steps" in parsed:
+                steps = [_normalize_step(s, i) for i, s in enumerate(parsed["steps"][:5])]
+            else:
+                steps = _parse_json_steps(content if content.strip().startswith("[") else json.dumps(parsed))
+        except (json.JSONDecodeError, ValueError, KeyError):
+            steps = _lines_to_steps([line for line in content.splitlines() if line.strip()])
+        if len(steps) < 5:
+            raise ValueError("Incomplete plan from Groq")
+        return steps[:5], content, "ai"
     except Exception:  # noqa: BLE001
         logger.exception("Groq orchestration failed; using goal-aware fallback.")
-        steps = _fallback_steps(title)
-        return steps, "\n".join(steps), "fallback"
+        steps = _fallback_plan(title)
+        return steps, json.dumps(steps), "fallback"
