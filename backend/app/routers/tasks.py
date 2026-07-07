@@ -32,9 +32,9 @@ def orchestrate(
     _sub: str = Depends(require_auth),
     db: Session = Depends(get_db),
 ) -> OrchestrateResponse:
-    steps, raw = orchestrate_steps(title=payload.title)
+    steps, raw, source = orchestrate_steps(title=payload.title)
     task = Task(title=payload.title, subtasks=steps, raw_response=raw)
     db.add(task)
     db.commit()
-    return OrchestrateResponse(subtasks=steps)
+    return OrchestrateResponse(subtasks=steps, source=source)
 

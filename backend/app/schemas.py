@@ -21,6 +21,7 @@ class OrchestrateRequest(BaseModel):
 
 class OrchestrateResponse(BaseModel):
     subtasks: list[str]
+    source: str = "ai"
 
 
 class TaskOut(BaseModel):

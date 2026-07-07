@@ -11,11 +11,39 @@ def test_tasks_empty_initially(client):
     assert resp.json() == []
 
 
+def test_demo_login_issues_token(client):
+    resp = client.post("/auth/demo")
+    assert resp.status_code == 200
+    token = resp.json()["token"]
+    assert token
+    # Demo token must be accepted by protected routes.
+    tasks = client.get("/api/tasks", headers={"Authorization": f"Bearer {token}"})
+    assert tasks.status_code == 200
+
+
+def test_orchestrate_fallback_without_key(client, monkeypatch):
+    token = _login(client)
+    from app.services import orchestrator
+
+    monkeypatch.setattr(orchestrator.settings, "groq_api_key", None, raising=False)
+
+    resp = client.post(
+        "/api/orchestrate",
+        json={"title": "Launch a podcast"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["subtasks"]) == 5
+    assert body["source"] == "fallback"
+
+
 def test_orchestrate_creates_task(client, monkeypatch):
     token = _login(client)
 
     def _fake_orchestrate_steps(*, title: str):
-        return [f"{title} step 1", f"{title} step 2", f"{title} step 3", f"{title} step 4", f"{title} step 5"], "raw"
+        steps = [f"{title} step {i}" for i in range(1, 6)]
+        return steps, "raw", "ai"
 
     import app.routers.tasks as tasks_router
 
