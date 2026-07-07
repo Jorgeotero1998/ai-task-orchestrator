@@ -1,22 +1,26 @@
 :root {
-  --bg: #050507;
-  --surface: rgba(255, 255, 255, 0.02);
-  --surface-2: rgba(255, 255, 255, 0.04);
-  --surface-3: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text: #f4f5f7;
-  --text-dim: rgba(244, 245, 247, 0.62);
-  --text-faint: rgba(244, 245, 247, 0.34);
-  --violet: #7c4dff;
+  --bg: #030305;
+  --surface: rgba(255, 255, 255, 0.025);
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --surface-3: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #f8f9fc;
+  --text-dim: rgba(248, 249, 252, 0.64);
+  --text-faint: rgba(248, 249, 252, 0.36);
+  --violet: #8b5cf6;
   --cyan: #22d3ee;
+  --magenta: #e879f9;
   --green: #34d399;
   --red: #fb7185;
-  --grad: linear-gradient(135deg, #7c4dff 0%, #22d3ee 100%);
-  --radius: 22px;
-  --radius-lg: 34px;
-  --shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
-  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --accent: #22d3ee;
+  --grad: linear-gradient(135deg, #8b5cf6 0%, #22d3ee 50%, #e879f9 100%);
+  --grad-soft: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(34, 211, 238, 0.2));
+  --radius: 20px;
+  --radius-lg: 32px;
+  --shadow: 0 32px 80px rgba(0, 0, 0, 0.55);
+  --font: var(--font-geist-sans, "Geist", system-ui, sans-serif);
+  --font-display: var(--font-display, "Syne", system-ui, sans-serif);
 }
 
 * {
@@ -47,11 +51,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(124, 77, 255, 0.25);
+  background: rgba(139, 92, 246, 0.28);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 77, 255, 0.5);
+  background: rgba(139, 92, 246, 0.5);
 }
 
 :focus-visible {
@@ -64,6 +68,11 @@ button {
   font-family: inherit;
 }
 
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
 /* Ambient mesh + particles */
 .mesh-bg {
   position: fixed;
@@ -71,40 +80,42 @@ button {
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 0%, rgba(124, 77, 255, 0.08), transparent 55%);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(34, 211, 238, 0.08), transparent);
 }
 
 .mesh-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.45;
-  animation: meshDrift 22s ease-in-out infinite alternate;
+  filter: blur(100px);
+  opacity: 0.5;
+  animation: meshDrift 24s ease-in-out infinite alternate;
 }
 
 .mesh-orb--violet {
-  width: 55vmax;
-  height: 55vmax;
-  top: -25%;
-  left: -15%;
-  background: radial-gradient(circle, rgba(124, 77, 255, 0.55), transparent 68%);
+  width: 60vmax;
+  height: 60vmax;
+  top: -28%;
+  left: -18%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.6), transparent 68%);
 }
 
 .mesh-orb--cyan {
-  width: 48vmax;
-  height: 48vmax;
-  bottom: -22%;
-  right: -12%;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.45), transparent 68%);
-  animation-delay: -11s;
+  width: 50vmax;
+  height: 50vmax;
+  bottom: -24%;
+  right: -14%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.5), transparent 68%);
+  animation-delay: -12s;
 }
 
 .mesh-orb--pink {
-  width: 32vmax;
-  height: 32vmax;
-  top: 35%;
-  right: 20%;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.25), transparent 70%);
+  width: 36vmax;
+  height: 36vmax;
+  top: 40%;
+  right: 15%;
+  background: radial-gradient(circle, rgba(232, 121, 249, 0.28), transparent 70%);
   animation-delay: -6s;
 }
 
@@ -112,10 +123,10 @@ button {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 15%, transparent 72%);
 }
 
 .particle-field {
@@ -123,7 +134,7 @@ button {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 @keyframes meshDrift {
@@ -131,17 +142,96 @@ button {
     transform: translate(0, 0) scale(1);
   }
   to {
-    transform: translate(4%, 3%) scale(1.06);
+    transform: translate(5%, 4%) scale(1.08);
   }
 }
 
 .glass-panel {
-  background: rgba(12, 12, 18, 0.55);
-  backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(8, 8, 14, 0.62);
+  backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 28px 64px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.gradient-ring {
+  position: relative;
+  border-radius: calc(var(--radius) + 2px);
+  padding: 1px;
+  background: var(--grad);
+  background-size: 200% 200%;
+  animation: gradShift 6s ease infinite;
+}
+
+.gradient-ring__inner {
+  border-radius: var(--radius);
+  background: rgba(8, 8, 14, 0.85);
+}
+
+@keyframes gradShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo--lg {
+  margin-bottom: 28px;
+}
+
+.brand-logo__orb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--grad);
+  color: #fff;
+  box-shadow:
+    0 8px 24px rgba(139, 92, 246, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.brand-logo--lg .brand-logo__orb {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.brand-logo__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-size: 15px;
+}
+
+.brand-logo--lg .brand-logo__text {
+  font-size: 19px;
+}
+
+.brand-logo__line {
+  color: var(--text);
+}
+
+.brand-logo__accent {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {

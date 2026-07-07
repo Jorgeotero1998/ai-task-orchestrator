@@ -50,8 +50,8 @@ export default function OrchestrationLoader({ goal }: Props) {
       <div className="orch-loader__icon">
         <Sparkles size={22} className="orch-spark" />
       </div>
-      <p className="orch-loader__label">Orchestrating plan</p>
-      <p className="orch-loader__goal">&ldquo;{goal}&rdquo;</p>
+      <p className="orch-loader__label font-display">Orchestrating plan</p>
+      <p className="orch-loader__goal font-display">&ldquo;{goal}&rdquo;</p>
       <p className="orch-loader__status">
         {typed}
         <span className="orch-cursor" aria-hidden>

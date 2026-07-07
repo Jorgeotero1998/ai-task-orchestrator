@@ -18,9 +18,9 @@ import {
   Rocket,
   Sparkles,
   X,
-  Zap,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
+import BrandLogo from "./BrandLogo";
 import MeshBackground from "./ambient/MeshBackground";
 import OrchestrationLoader from "./OrchestrationLoader";
 
@@ -309,6 +309,15 @@ export default function Dashboard() {
 
   const progress = result.length ? Math.round((completedSteps.length / result.length) * 100) : 0;
 
+  const countHistorySteps = useCallback((h: HistoryItem): number => {
+    try {
+      const data = typeof h.subtasks === "string" ? JSON.parse(h.subtasks) : h.subtasks;
+      return Array.isArray(data) ? data.length : data ? 1 : 0;
+    } catch {
+      return 0;
+    }
+  }, []);
+
   return (
     <div className="app">
       <MeshBackground />
@@ -321,12 +330,7 @@ export default function Dashboard() {
         {booting ? (
           <motion.div key="boot" className="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="landing-card boot-card glass-panel">
-              <div className="brand brand--lg">
-                <span className="brand-mark">
-                  <Zap size={20} />
-                </span>
-                AI Task <span className="grad-text">Orchestrator</span>
-              </div>
+              <BrandLogo size="lg" />
               <Loader2 size={32} className="spin boot-spinner" />
               <p className="hero-hint">Starting your demo session…</p>
             </div>
@@ -345,13 +349,8 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <div className="brand brand--lg">
-                <span className="brand-mark">
-                  <Zap size={20} />
-                </span>
-                AI Task <span className="grad-text">Orchestrator</span>
-              </div>
-              <h1 className="hero-title">Turn any goal into a plan you can act on.</h1>
+              <BrandLogo size="lg" />
+              <h1 className="hero-title font-display">Turn any goal into a plan you can act on.</h1>
               <p className="hero-sub">
                 Describe an objective and an LLM breaks it into 5 concrete, actionable steps —
                 tracked, exportable, and saved to your history.
@@ -444,12 +443,7 @@ export default function Dashboard() {
             {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} aria-hidden />}
             <aside className={`sidebar glass-panel ${sidebarOpen ? "sidebar--open" : ""}`} aria-label="History">
               <div className="sidebar-head">
-                <div className="brand">
-                  <span className="brand-mark">
-                    <Zap size={16} />
-                  </span>
-                  AI <span className="grad-text">Task</span>
-                </div>
+                <BrandLogo />
                 <button
                   type="button"
                   className="icon-btn sidebar-close"
@@ -465,7 +459,9 @@ export default function Dashboard() {
                 {history.length === 0 ? (
                   <p className="side-empty">No plans yet. Generate your first one.</p>
                 ) : (
-                  history.map((h) => (
+                  history.map((h) => {
+                    const steps = countHistorySteps(h);
+                    return (
                     <button
                       key={h.id}
                       type="button"
@@ -474,9 +470,11 @@ export default function Dashboard() {
                       title={h.title}
                     >
                       <ChevronRight size={13} />
-                      <span>{h.title}</span>
+                      <span className="history-pill__title">{h.title}</span>
+                      {steps > 0 && <span className="history-pill__count">{steps}</span>}
                     </button>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
@@ -495,9 +493,7 @@ export default function Dashboard() {
                 >
                   <Menu size={20} />
                 </button>
-                <div className="topbar-title brand">
-                  AI Task <span className="grad-text">Orchestrator</span>
-                </div>
+                <BrandLogo />
                 {result.length > 0 && (
                   <button type="button" className="btn btn--soft" onClick={exportPDF}>
                     <FileDown size={15} /> PDF
@@ -506,9 +502,26 @@ export default function Dashboard() {
               </header>
 
               <div className="canvas">
-                <div className="composer glass-panel">
-                  <label htmlFor="goal" className="composer-label">
-                    Tell me your goal
+                {result.length === 0 && !loading && (
+                  <motion.div
+                    className="hero-panel glass-panel"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.45 }}
+                  >
+                    <p className="hero-panel__eyebrow font-display">Goal → Plan → Execute</p>
+                    <h2 className="hero-panel__title font-display">Orchestrate your next move</h2>
+                    <p className="hero-panel__sub">
+                      Describe any objective — get a structured 5-step action plan with priorities and timelines.
+                    </p>
+                  </motion.div>
+                )}
+
+                <div className={`composer-wrap ${loading ? "composer-wrap--active" : ""}`}>
+                <div className="gradient-ring">
+                <div className="gradient-ring__inner composer glass-panel">
+                  <label htmlFor="goal" className="composer-label font-display">
+                    What do you want to achieve?
                   </label>
                   <div className={`composer-row ${loading ? "composer-row--active" : ""}`}>
                     <input
@@ -540,9 +553,16 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
+                </div>
+                </div>
 
                 {result.length > 0 && !loading && (
-                  <div className="result-head">
+                  <motion.div
+                    className="result-head"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <h2 className="result-goal font-display">{task}</h2>
                     <div className="progress">
                       <div className="progress-bar" style={{ width: `${progress}%` }} />
                     </div>
@@ -553,7 +573,7 @@ export default function Dashboard() {
                       {source === "demo" && <span className="badge badge--demo">Demo mode</span>}
                       {source === "ai" && <span className="badge badge--ai">AI generated</span>}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 <div className="steps">
@@ -580,8 +600,9 @@ export default function Dashboard() {
                               stiffness: 280,
                               damping: 26,
                             }}
-                            className={`plan-card glass-panel ${done ? "plan-card--done" : ""}`}
+                            className={`plan-card glass-panel plan-card--${step.priority} ${done ? "plan-card--done" : ""}`}
                           >
+                            <span className="plan-card__accent" aria-hidden />
                             <div className="plan-card__head">
                               <button
                                 type="button"
@@ -654,7 +675,7 @@ export default function Dashboard() {
                       <div className="empty-orb">
                         <Sparkles size={30} />
                       </div>
-                      <p className="empty-title">Ready when you are</p>
+                      <p className="empty-title font-display">Ready when you are</p>
                       <p className="empty-sub">
                         Type a goal above or pick an example to see it broken into steps.
                       </p>
@@ -710,7 +731,7 @@ function Styles() {
       .boot-card { text-align: center; max-width: 360px; }
       .boot-spinner { margin: 24px auto 12px; color: var(--cyan); }
       .landing-card { width: 100%; max-width: 460px; border-radius: var(--radius-lg); padding: 40px; }
-      .hero-title { font-size: 30px; line-height: 1.15; font-weight: 800; margin: 4px 0 14px; letter-spacing: -0.02em; }
+      .hero-title { font-size: 34px; line-height: 1.08; font-weight: 800; margin: 4px 0 14px; letter-spacing: -0.04em; }
       .hero-sub { color: var(--text-dim); font-size: 15px; line-height: 1.6; margin: 0 0 22px; }
       .hero-features { list-style: none; padding: 0; margin: 0 0 26px; display: flex; flex-wrap: wrap; gap: 10px; }
       .hero-features li { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); padding: 7px 12px; border-radius: 999px; }
@@ -747,21 +768,28 @@ function Styles() {
       .side-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-faint); font-weight: 600; margin: 0 0 14px 4px; }
       .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin: 0 -4px; padding: 0 4px; }
       .side-empty { color: var(--text-faint); font-size: 13px; line-height: 1.5; padding: 4px; }
-      .history-pill { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 12px; background: transparent; border: 1px solid transparent; color: var(--text-dim); font-size: 13px; cursor: pointer; transition: background .2s, color .2s; }
-      .history-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .history-pill { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 12px; background: transparent; border: 1px solid transparent; color: var(--text-dim); font-size: 13px; cursor: pointer; transition: background .2s, color .2s, border-color .2s, transform .15s; }
+      .history-pill__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+      .history-pill__count { flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 999px; background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25); font-family: var(--font); }
       .history-pill svg { flex-shrink: 0; color: var(--violet); }
-      .history-pill:hover { background: var(--surface-2); color: var(--text); }
+      .history-pill:hover { background: var(--surface-2); color: var(--text); border-color: var(--border); transform: translateX(3px); }
       .signout { display: flex; align-items: center; gap: 9px; margin-top: 18px; padding: 12px; border-radius: 12px; background: transparent; border: 1px solid var(--border); color: var(--red); font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; }
       .signout:hover { background: rgba(251,113,133,0.1); }
 
       .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
       .topbar { display: flex; align-items: center; gap: 14px; padding: 18px 26px; border-bottom: 1px solid var(--border); border-radius: 0; margin-bottom: 0; }
-      .topbar-title { font-weight: 800; font-size: 17px; flex: 1; }
+      .topbar .brand-logo { flex: 1; }
       .menu-btn { display: none; }
 
       .canvas { flex: 1; overflow-y: auto; padding: 30px 26px 60px; max-width: 780px; width: 100%; margin: 0 auto; }
-      .composer { margin-bottom: 26px; padding: 22px; border-radius: var(--radius); }
-      .composer-label { display: block; font-size: 14px; color: var(--text); margin-bottom: 12px; font-weight: 600; letter-spacing: -0.01em; }
+      .hero-panel { margin-bottom: 22px; padding: 28px 26px; border-radius: var(--radius); text-align: center; }
+      .hero-panel__eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--cyan); margin: 0 0 10px; font-weight: 700; }
+      .hero-panel__title { font-size: 28px; font-weight: 800; margin: 0 0 10px; letter-spacing: -0.04em; line-height: 1.1; }
+      .hero-panel__sub { margin: 0; font-size: 14px; color: var(--text-dim); line-height: 1.55; max-width: 420px; margin-inline: auto; }
+      .composer-wrap { margin-bottom: 26px; transition: transform .25s; }
+      .composer-wrap--active { transform: scale(1.008); }
+      .composer { margin-bottom: 0; padding: 22px; border-radius: calc(var(--radius) - 1px); border: none; box-shadow: none; }
+      .composer-label { display: block; font-size: 18px; color: var(--text); margin-bottom: 12px; font-weight: 700; letter-spacing: -0.03em; }
       .composer-row { display: flex; gap: 10px; transition: box-shadow .25s; border-radius: 14px; }
       .composer-row--active { box-shadow: 0 0 0 2px rgba(124,77,255,0.35), 0 0 30px rgba(34,211,238,0.15); }
       .composer-input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 15px 16px; color: var(--text); font-size: 15px; outline: none; transition: border-color .2s, background .2s; }
@@ -774,6 +802,7 @@ function Styles() {
       .chip:hover { border-color: var(--violet); color: var(--text); background: var(--surface-3); }
 
       .result-head { margin-bottom: 18px; }
+      .result-goal { font-size: 20px; font-weight: 800; margin: 0 0 14px; letter-spacing: -0.03em; line-height: 1.25; color: var(--text); }
       .progress { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
       .progress-bar { height: 100%; background: var(--grad); border-radius: 999px; transition: width .4s ease; }
       .result-meta { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12.5px; color: var(--text-dim); }
@@ -782,7 +811,11 @@ function Styles() {
       .badge--demo { background: rgba(124,77,255,0.12); color: #a78bfa; border: 1px solid rgba(124,77,255,0.25); }
 
       .steps { display: flex; flex-direction: column; gap: 11px; }
-      .plan-card { border-radius: 18px; overflow: hidden; transition: border-color .2s, transform .2s, box-shadow .25s; }
+      .plan-card { position: relative; border-radius: 18px; overflow: hidden; transition: border-color .2s, transform .2s, box-shadow .25s; }
+      .plan-card__accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 18px 0 0 18px; }
+      .plan-card--high .plan-card__accent { background: linear-gradient(180deg, #fb7185, rgba(251,113,133,0.3)); }
+      .plan-card--medium .plan-card__accent { background: linear-gradient(180deg, #fbbf24, rgba(251,191,36,0.3)); }
+      .plan-card--low .plan-card__accent { background: linear-gradient(180deg, #34d399, rgba(52,211,153,0.3)); }
       .plan-card:hover { border-color: var(--border-strong); transform: translateY(-2px); box-shadow: 0 16px 40px rgba(0,0,0,0.35); }
       .plan-card--done { opacity: 0.58; border-color: rgba(52,211,153,0.3); }
       .plan-card--done .plan-card__title { text-decoration: line-through; }
@@ -791,7 +824,7 @@ function Styles() {
       .plan-card__toggle { flex: 1; display: flex; align-items: center; gap: 12px; background: none; border: none; color: var(--text); cursor: pointer; text-align: left; padding: 8px 6px; }
       .plan-card__main { flex: 1; min-width: 0; }
       .plan-card__title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .plan-card__title { font-size: 15px; font-weight: 700; line-height: 1.35; }
+      .plan-card__title { font-size: 15px; font-weight: 700; line-height: 1.35; font-family: var(--font-display); letter-spacing: -0.02em; }
       .plan-card__time { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px; color: var(--text-dim); }
       .plan-card__body { margin: 0; padding: 0 18px 16px 68px; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); }
       .plan-chevron { flex-shrink: 0; color: var(--text-faint); transition: transform .2s; }
@@ -810,7 +843,7 @@ function Styles() {
       .orch-loader__icon { width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: rgba(124,77,255,0.15); border: 1px solid rgba(124,77,255,0.25); }
       .orch-spark { color: var(--cyan); animation: rotate 2.5s linear infinite; }
       .orch-loader__label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-faint); margin: 0 0 8px; font-weight: 700; }
-      .orch-loader__goal { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--text); }
+      .orch-loader__goal { font-size: 17px; font-weight: 700; margin: 0 0 12px; color: var(--text); letter-spacing: -0.03em; }
       .orch-loader__status { font-size: 13px; color: var(--cyan); min-height: 20px; margin: 0 0 18px; font-family: ui-monospace, monospace; }
       .orch-cursor { animation: blink 1s step-end infinite; margin-left: 2px; }
       .orch-loader__bars { display: flex; justify-content: center; gap: 5px; height: 28px; align-items: flex-end; }
@@ -824,7 +857,7 @@ function Styles() {
       .empty { text-align: center; padding: 60px 20px; }
       .empty-orb { width: 74px; height: 74px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); color: var(--violet); margin-bottom: 18px; animation: pulseOrb 3s ease-in-out infinite; }
       @keyframes pulseOrb { 0%,100% { box-shadow: 0 0 0 0 rgba(124,77,255,0.2); } 50% { box-shadow: 0 0 30px 8px rgba(124,77,255,0.15); } }
-      .empty-title { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
+      .empty-title { font-size: 18px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.03em; }
       .empty-sub { color: var(--text-dim); font-size: 13.5px; line-height: 1.5; max-width: 340px; margin: 0 auto; }
 
       /* Toasts */
@@ -850,7 +883,8 @@ function Styles() {
         .canvas { padding: 22px 16px 50px; }
         .composer-go-text { display: none; }
         .composer-go { width: 52px; padding: 0; }
-        .hero-title { font-size: 25px; }
+        .hero-title { font-size: 26px; }
+        .hero-panel__title { font-size: 22px; }
         .landing-card { padding: 30px 24px; }
       }
     `}</style>
