@@ -1,15 +1,31 @@
-"""Password hashing helpers."""
+"""Password hashing helpers (stdlib only — works on Vercel serverless)."""
 
 from __future__ import annotations
 
-from passlib.context import CryptContext
+import hashlib
+import hmac
+import secrets
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_ITERATIONS = 120_000
 
 
 def hash_password(password: str) -> str:
-    return _pwd.hash(password)
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), _ITERATIONS)
+    return f"pbkdf2_sha256${_ITERATIONS}${salt}${digest.hex()}"
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return _pwd.verify(password, password_hash)
+    try:
+        scheme, iterations, salt, digest = password_hash.split("$", 3)
+        if scheme != "pbkdf2_sha256":
+            return False
+        expected = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            int(iterations),
+        ).hex()
+        return hmac.compare_digest(expected, digest)
+    except (ValueError, TypeError):
+        return False
