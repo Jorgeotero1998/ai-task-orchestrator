@@ -98,15 +98,10 @@ export default function Dashboard() {
   useEffect(() => {
     document.title = PRODUCT_NAME;
     const params = new URLSearchParams(window.location.search);
-    const stored = window.localStorage.getItem("token");
-
-    if (stored) {
-      setToken(stored);
-      setBooting(false);
-      return;
-    }
 
     if (params.get("admin") === "1") {
+      const stored = window.localStorage.getItem("token");
+      if (stored) setToken(stored);
       setBooting(false);
       return;
     }
@@ -117,6 +112,7 @@ export default function Dashboard() {
       .then((res) => {
         setToken(res.data.token);
         window.localStorage.setItem("token", res.data.token);
+        window.localStorage.removeItem("auth_mode");
       })
       .catch(() => {
         pushToast("Could not start demo. Click Launch live demo to retry.", "error");
@@ -161,6 +157,7 @@ export default function Dashboard() {
     try {
       const res = await axios.post(`${apiBase}/auth/login`, { email, password });
       startSession(res.data.token, "Signed in");
+      window.localStorage.setItem("auth_mode", "admin");
     } catch {
       pushToast("Invalid credentials", "error");
     } finally {
@@ -170,6 +167,7 @@ export default function Dashboard() {
 
   const handleLogout = useCallback(() => {
     window.localStorage.removeItem("token");
+    window.localStorage.removeItem("auth_mode");
     setToken("");
     setResult([]);
     setHistory([]);
