@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.constants import DEMO_SUBJECT
+from app.db import get_db
 from app.schemas import LoginRequest, LoginResponse
 from app.security import create_access_token
+from app.services.demo_seed import reset_demo_seed
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-DEMO_SUBJECT = "demo@orchestrator.app"
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -20,11 +22,8 @@ def login(payload: LoginRequest) -> LoginResponse:
 
 
 @router.post("/demo", response_model=LoginResponse)
-def demo_login() -> LoginResponse:
-    """Frictionless demo access.
+def demo_login(db: Session = Depends(get_db)) -> LoginResponse:
+    """Frictionless demo access with curated sample plans."""
 
-    Issues a scoped, read/write demo token without credentials so recruiters
-    can try the product instantly. Real auth via ``/auth/login`` is unaffected.
-    """
+    reset_demo_seed(db)
     return LoginResponse(token=create_access_token(subject=DEMO_SUBJECT))
-

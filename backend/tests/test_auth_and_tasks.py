@@ -16,9 +16,32 @@ def test_demo_login_issues_token(client):
     assert resp.status_code == 200
     token = resp.json()["token"]
     assert token
-    # Demo token must be accepted by protected routes.
     tasks = client.get("/api/tasks", headers={"Authorization": f"Bearer {token}"})
     assert tasks.status_code == 200
+    titles = [t["title"] for t in tasks.json()]
+    assert len(titles) == 3
+    assert "Launch a tech podcast in 30 days" in titles
+
+
+def test_tasks_scoped_to_owner(client, monkeypatch):
+    token = _login(client)
+
+    def _fake_orchestrate_steps(*, title: str):
+        steps = [f"{title} step {i}" for i in range(1, 6)]
+        return steps, "raw", "ai"
+
+    import app.routers.tasks as tasks_router
+
+    monkeypatch.setattr(tasks_router, "orchestrate_steps", _fake_orchestrate_steps)
+
+    client.post(
+        "/api/orchestrate",
+        json={"title": "Admin-only goal"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    demo = client.post("/auth/demo").json()["token"]
+    demo_tasks = client.get("/api/tasks", headers={"Authorization": f"Bearer {demo}"}).json()
+    assert all(t["title"] != "Admin-only goal" for t in demo_tasks)
 
 
 def test_orchestrate_fallback_without_key(client, monkeypatch):

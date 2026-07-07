@@ -16,10 +16,15 @@ router = APIRouter(prefix="/api", tags=["tasks"])
 
 @router.get("/tasks", response_model=list[TaskOut])
 def list_tasks(
-    _sub: str = Depends(require_auth),
+    sub: str = Depends(require_auth),
     db: Session = Depends(get_db),
 ) -> list[TaskOut]:
-    rows = db.execute(select(Task).order_by(Task.created_at.desc())).scalars().all()
+    rows = db.execute(
+        select(Task)
+        .where(Task.owner == sub)
+        .order_by(Task.created_at.desc())
+        .limit(20)
+    ).scalars().all()
     return [
         TaskOut(id=r.id, title=r.title, subtasks=r.subtasks, created_at=r.created_at)
         for r in rows
@@ -29,12 +34,11 @@ def list_tasks(
 @router.post("/orchestrate", response_model=OrchestrateResponse)
 def orchestrate(
     payload: OrchestrateRequest,
-    _sub: str = Depends(require_auth),
+    sub: str = Depends(require_auth),
     db: Session = Depends(get_db),
 ) -> OrchestrateResponse:
     steps, raw, source = orchestrate_steps(title=payload.title)
-    task = Task(title=payload.title, subtasks=steps, raw_response=raw)
+    task = Task(title=payload.title, owner=sub, subtasks=steps, raw_response=raw)
     db.add(task)
     db.commit()
     return OrchestrateResponse(subtasks=steps, source=source)
-

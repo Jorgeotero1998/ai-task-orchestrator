@@ -34,6 +34,8 @@ const EXAMPLE_GOALS = [
   "Plan a product launch on a budget",
 ];
 
+const PRODUCT_NAME = "AI Task Orchestrator";
+
 export default function Dashboard() {
   const apiBase = useMemo(() => {
     const raw = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -57,6 +59,7 @@ export default function Dashboard() {
   const [password, setPassword] = useState<string>("");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [booting, setBooting] = useState<boolean>(true);
   const toastId = useRef(0);
 
   const pushToast = useCallback((message: string, type: Toast["type"] = "info") => {
@@ -93,10 +96,36 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
-    document.title = "AI Task Orchestrator";
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem("token") : null;
-    if (stored) setToken(stored);
-  }, []);
+    document.title = PRODUCT_NAME;
+    const params = new URLSearchParams(window.location.search);
+    const stored = window.localStorage.getItem("token");
+
+    if (stored) {
+      setToken(stored);
+      setBooting(false);
+      return;
+    }
+
+    if (params.get("admin") === "1") {
+      setBooting(false);
+      return;
+    }
+
+    setAuthLoading(true);
+    axios
+      .post(`${apiBase}/auth/demo`)
+      .then((res) => {
+        setToken(res.data.token);
+        window.localStorage.setItem("token", res.data.token);
+      })
+      .catch(() => {
+        pushToast("Could not start demo. Click Launch live demo to retry.", "error");
+      })
+      .finally(() => {
+        setAuthLoading(false);
+        setBooting(false);
+      });
+  }, [apiBase, pushToast]);
 
   useEffect(() => {
     if (token) void fetchHistory(token);
@@ -172,7 +201,7 @@ export default function Dashboard() {
         setCompletedSteps([]);
         void fetchHistory(token);
         if (res.data?.source === "fallback") {
-          pushToast("Showing a template plan — connect Groq for live AI", "info");
+          pushToast("Plan ready — add GROQ_API_KEY in Vercel for live Llama 3.3", "info");
         } else {
           pushToast("Plan generated", "success");
         }
@@ -204,32 +233,45 @@ export default function Dashboard() {
 
   const exportPDF = useCallback(() => {
     const doc = new jsPDF();
-    doc.setFontSize(20);
+    const generatedAt = new Date().toLocaleString();
+
+    doc.setFontSize(22);
     doc.setTextColor(124, 77, 255);
-    doc.text("AI Task Orchestrator", 20, 20);
+    doc.text(PRODUCT_NAME, 20, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(110, 110, 110);
+    doc.text("Strategic Action Plan", 20, 30);
     doc.setFontSize(12);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Goal: ${task || "Untitled"}`, 20, 35);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 42);
+    doc.text(`Goal: ${task || "Untitled"}`, 20, 42);
+    doc.text(`Generated: ${generatedAt}`, 20, 49);
     doc.setDrawColor(34, 211, 238);
-    doc.line(20, 48, 190, 48);
+    doc.line(20, 54, 190, 54);
     doc.setFontSize(14);
-    doc.setTextColor(20, 20, 20);
-    doc.text("Steps", 20, 60);
-    let y = 70;
+    doc.setTextColor(30, 30, 30);
+    doc.text("Action Steps", 20, 66);
+    let y = 76;
     result.forEach((step, i) => {
       const lines = doc.splitTextToSize(`${i + 1}. ${step}`, 170) as string[];
-      if (y > 270) {
+      if (y > 265) {
         doc.addPage();
-        y = 20;
+        y = 24;
       }
       doc.setFontSize(11);
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(45, 45, 45);
       doc.text(lines, 20, y);
-      y += lines.length * 7;
+      y += lines.length * 7 + 4;
     });
-    doc.save(`AI_Task_Orchestrator_${Date.now()}.pdf`);
-    pushToast("Exported to PDF", "success");
+
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p += 1) {
+      doc.setPage(p);
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`${PRODUCT_NAME} · ${generatedAt} · Page ${p} of ${pages}`, 20, 290);
+    }
+
+    doc.save(`${PRODUCT_NAME.replace(/\s+/g, "_")}_${Date.now()}.pdf`);
+    pushToast("PDF exported", "success");
   }, [result, task, pushToast]);
 
   const progress = result.length ? Math.round((completedSteps.length / result.length) * 100) : 0;
@@ -240,7 +282,20 @@ export default function Dashboard() {
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
 
       <AnimatePresence mode="wait">
-        {!token ? (
+        {booting ? (
+          <motion.div key="boot" className="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="landing-card boot-card">
+              <div className="brand brand--lg">
+                <span className="brand-mark">
+                  <Zap size={20} />
+                </span>
+                AI Task <span className="grad-text">Orchestrator</span>
+              </div>
+              <Loader2 size={32} className="spin boot-spinner" />
+              <p className="hero-hint">Starting your demo session…</p>
+            </div>
+          </motion.div>
+        ) : !token ? (
           <motion.div
             key="landing"
             className="landing"
@@ -404,8 +459,8 @@ export default function Dashboard() {
                 >
                   <Menu size={20} />
                 </button>
-                <div className="topbar-title">
-                  <span className="grad-text">Orchestrator</span>
+                <div className="topbar-title brand">
+                  AI Task <span className="grad-text">Orchestrator</span>
                 </div>
                 {result.length > 0 && (
                   <button type="button" className="btn btn--soft" onClick={exportPDF}>
@@ -459,7 +514,7 @@ export default function Dashboard() {
                       <span>
                         {completedSteps.length}/{result.length} done
                       </span>
-                      {source === "fallback" && <span className="badge badge--warn">Template mode</span>}
+                      {source === "fallback" && <span className="badge badge--warn">Smart plan</span>}
                       {source === "ai" && <span className="badge badge--ai">AI generated</span>}
                     </div>
                   </div>
@@ -562,6 +617,8 @@ function Styles() {
 
       /* Landing */
       .landing { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+      .boot-card { text-align: center; max-width: 360px; }
+      .boot-spinner { margin: 24px auto 12px; color: var(--cyan); }
       .landing-card { width: 100%; max-width: 460px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 40px; box-shadow: var(--shadow); backdrop-filter: blur(40px); }
       .hero-title { font-size: 30px; line-height: 1.15; font-weight: 800; margin: 4px 0 14px; letter-spacing: -0.02em; }
       .hero-sub { color: var(--text-dim); font-size: 15px; line-height: 1.6; margin: 0 0 22px; }

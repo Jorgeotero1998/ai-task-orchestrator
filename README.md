@@ -31,9 +31,9 @@ Single Vercel deploy — front-end at `/`, FastAPI at `/api/*`. JWT admin auth, 
 
 ## Try it instantly
 
-Open the [live demo](https://ai-task-orchestrator-inky.vercel.app/) and click **“Launch live demo”** — no sign-up, no credentials. A scoped demo session starts immediately via `POST /auth/demo`, so recruiters can generate a plan in one click.
+Open the [live demo](https://ai-task-orchestrator-inky.vercel.app/) — it **auto-starts a demo session** on first visit (no sign-up, no credentials). A scoped token is issued via `POST /auth/demo` and three curated sample plans appear in Recent plans.
 
-Prefer real auth? Use **“Sign in as admin”**:
+Prefer the manual landing? Add `?admin=1` to the URL, or use **“Sign in as admin”**:
 
 | Field | Value |
 |-------|-------|
