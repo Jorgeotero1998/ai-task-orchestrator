@@ -39,13 +39,13 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://postgres:postgres@db:5432/ai_task_orchestrator"
 
-    jwt_secret: str = "change-me"
+    jwt_secret: str
     jwt_issuer: str = "ai-task-orchestrator"
     jwt_audience: str = "ai-task-orchestrator"
     jwt_exp_minutes: int = 60 * 24 * 7  # 7 days
 
     admin_email: str = "admin@example.com"
-    admin_password: str = "Admin1234!"
+    admin_password: str | None = None
 
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"

@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.constants import DEMO_SUBJECT
 from app.db import get_db
 from app.models import User
@@ -16,9 +15,6 @@ from app.services.user_seed import ensure_seed_users
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-_LEGACY_ADMIN_PASSWORDS = {"Admin1234!", "change-me", "admin"}
-
-
 def _issue_token(subject: str) -> LoginResponse:
     return LoginResponse(token=create_access_token(subject=subject))
 
@@ -28,11 +24,6 @@ def _authenticate(email: str, password: str, db: Session) -> str | None:
     user = db.scalar(select(User).where(User.email == normalized))
     if user and verify_password(password, user.password_hash):
         return user.email
-
-    if normalized == settings.admin_email.strip().lower():
-        accepted = _LEGACY_ADMIN_PASSWORDS | {settings.admin_password}
-        if password in accepted:
-            return settings.admin_email
 
     return None
 

@@ -7,9 +7,9 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 
-**Live:** [ai-task-orchestrator-inky.vercel.app](https://ai-task-orchestrator-inky.vercel.app/) · **Stack:** Next.js/React + FastAPI + PostgreSQL + Groq LLM on Vercel
+**Live:** [ai-task-orchestrator-inky.vercel.app](https://ai-task-orchestrator-inky.vercel.app/) · **Stack:** Next.js/React + FastAPI + PostgreSQL, with optional Groq integration
 
-An AI orchestration product that decomposes a strategic goal into **actionable steps** using **Groq's Llama 3.3**, persists results to Postgres, and ships with a production deploy path.
+A task-planning app that decomposes a strategic goal into **actionable steps** and persists results to Postgres. The public demo currently uses the deterministic built-in planner; Groq Llama 3.3 is an optional integration.
 
 <p align="center">
   <a href="https://ai-task-orchestrator-inky.vercel.app/">
@@ -22,8 +22,8 @@ An AI orchestration product that decomposes a strategic goal into **actionable s
 ### Architecture
 
 ```
-React / Next.js dashboard  ──▶  FastAPI  /api  ──▶  Groq LLM (Llama 3.3)
-                                    │
+React / Next.js dashboard  ──▶  FastAPI  /api  ──▶  Built-in planner
+                                    │             Optional: Groq Llama 3.3
                                     ▼
                         SQLAlchemy + Alembic ──▶ PostgreSQL (Neon)
 ```
@@ -33,21 +33,16 @@ Single Vercel deploy — front-end at `/`, FastAPI at `/api/*`. JWT admin auth, 
 
 Open the [live demo](https://ai-task-orchestrator-inky.vercel.app/) — it **auto-starts a demo session** on first visit (no sign-up, no credentials). A scoped token is issued via `POST /auth/demo` and three curated sample plans appear in Recent plans.
 
-Prefer the manual landing? Add `?admin=1` to the URL, or use **“Sign in as admin”**:
+Prefer the manual landing? Add `?admin=1` to the URL. Admin sign-in requires credentials configured by the deployment owner; no public default credentials are provided.
 
-| Field | Value |
-|-------|-------|
-| Email | `admin@example.com` |
-| Password | `change-me` |
-
-## AI modes (always works on live)
+## Planning modes
 
 | Mode | When | Badge in UI |
 |------|------|-------------|
 | **Demo mode** | `GROQ_API_KEY` missing or Groq error | Built-in orchestrator — structured plan with priorities & timelines |
 | **AI generated** | Groq Llama 3.3 configured | Live LLM decomposition |
 
-The live demo **never breaks**: without Groq it uses a goal-aware built-in orchestrator (not an error).
+Without Groq, the live demo uses the built-in planner instead of making an LLM request.
 
 ### Enable live Groq AI (3 steps)
 
@@ -81,6 +76,8 @@ Verify: `GET https://ai-task-orchestrator-inky.vercel.app/api/health` → `"ai":
 cp .env.example .env
 ```
 
+Set `JWT_SECRET` and `ADMIN_PASSWORD` in `.env`; the Compose stack intentionally has no default credentials.
+
 2) Start the stack:
 
 ```bash
@@ -93,7 +90,7 @@ docker compose up -d --build
 
 ## Configuration (env vars)
 See `.env.example`. Minimum production env vars:
-- **API**: `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `GROQ_API_KEY`
+- **API**: `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`; `GROQ_API_KEY` is optional
 - **Web**: `NEXT_PUBLIC_API_BASE_URL` (and optionally `API_BASE_URL_INTERNAL`)
 
 ## Migrations
@@ -108,7 +105,8 @@ docker compose exec backend alembic -c alembic.ini upgrade head
 1) Import repo in Vercel with **Framework Preset: Services** (root `vercel.json`).
 2) Create/connect a Neon Postgres database and set env vars:
 - `DATABASE_URL` (or Vercel Postgres integration vars)
-- `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `GROQ_API_KEY`
+- `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+- Optional: `GROQ_API_KEY` to enable LLM-generated plans
 - `CORS_ORIGINS_CSV`: your Vercel domain(s)
 - `NEXT_PUBLIC_API_BASE_URL=/api`
 - `API_BASE_URL_INTERNAL=/api` (for `/api/health` route)

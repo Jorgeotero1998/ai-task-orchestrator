@@ -24,9 +24,9 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/ai_task_orchestrator
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
       CORS_ORIGINS_CSV: ${CORS_ORIGINS_CSV:-http://localhost:3000}
